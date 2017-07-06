@@ -262,7 +262,7 @@ Extractor::ParseOSMData(ScriptingEnvironment &scripting_environment,
         SharedBuffer buffer;
         std::vector<std::pair<const osmium::Node &, ExtractionNode>> resulting_nodes;
         std::vector<std::pair<const osmium::Way &, ExtractionWay>> resulting_ways;
-        std::vector<boost::optional<InputRestrictionContainer>> resulting_restrictions;
+        std::vector<InputConditionalTurnRestriction> resulting_restrictions;
     };
 
     tbb::filter_t<void, SharedBuffer> buffer_reader(
