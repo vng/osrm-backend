@@ -506,6 +506,37 @@ Feature: Car - Turn restrictions
             | s    | n  | sj,nj,nj |
             | s    | e  | sj,ej,ej |
 
+    @restriction @compression
+    Scenario: Restriction On Compressed Geometry
+        Given the node map
+            """
+                        i
+                        |
+                    f - e
+                    |   |
+            a - b - c - d
+                    |
+                    g
+                    |
+                    h
+            """
+
+        And the ways
+            | nodes |
+            | abc   |
+            | cde   |
+            | efc   |
+            | cgh   |
+            | ei    |
+
+        And the relations
+            | type        | way:from | node:via | way:to | restriction   |
+            | restriction | abc      | c        | cgh    | no_right_turn |
+
+        When I route I should get
+            | from | to | route               |
+            | a    | h  | abc,cde,efc,cgh,cgh |
+
     @restriction
     Scenario: Car - prohibit turn
         Given the node map
@@ -564,6 +595,7 @@ Feature: Car - Turn restrictions
         When I route I should get
             | from | to | route       |
             | a    | d  | ab,be,de,de |
+
 
     @restriction
     Scenario: Car - allow only turn
