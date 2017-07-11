@@ -702,7 +702,8 @@ void ExtractionContainers::PrepareRestrictions()
     }
 
     auto const to_internal = [&](auto const osm_node) {
-        auto internal = mapExternalToInternalNodeID(used_node_id_list.begin(), used_node_id_list.end(), OSMNodeID{osm_node});
+        auto internal = mapExternalToInternalNodeID(
+            used_node_id_list.begin(), used_node_id_list.end(), OSMNodeID{osm_node});
         if (internal == SPECIAL_NODEID)
         {
             util::Log(logDEBUG) << "Restriction references invalid node: " << osm_node;

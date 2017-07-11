@@ -17,6 +17,7 @@
 #include "extractor/profile_properties.hpp"
 #include "extractor/query_node.hpp"
 #include "extractor/restriction_map.hpp"
+#include "extractor/way_restriction_map.hpp"
 
 #include "util/concurrent_id_map.hpp"
 #include "util/deallocating_vector.hpp"
@@ -78,7 +79,6 @@ class EdgeBasedGraphFactory
                                    CompressedEdgeContainer &compressed_edge_container,
                                    const std::unordered_set<NodeID> &barrier_nodes,
                                    const std::unordered_set<NodeID> &traffic_lights,
-                                   std::shared_ptr<const RestrictionMap> restriction_map,
                                    const std::vector<util::Coordinate> &coordinates,
                                    const extractor::PackedOSMIDs &osm_node_ids,
                                    ProfileProperties profile_properties,
@@ -91,7 +91,9 @@ class EdgeBasedGraphFactory
              const std::string &turn_weight_penalties_filename,
              const std::string &turn_duration_penalties_filename,
              const std::string &turn_penalties_index_filename,
-             const std::string &cnbg_ebg_mapping_path);
+             const std::string &cnbg_ebg_mapping_path,
+             const RestrictionMap &restriction_map,
+             const WayRestrictionMap &way_restriction_map);
 
     // The following get access functions destroy the content in the factory
     void GetEdgeBasedEdges(util::DeallocatingVector<EdgeBasedEdge> &edges);
@@ -139,7 +141,6 @@ class EdgeBasedGraphFactory
     const std::vector<util::Coordinate> &m_coordinates;
     const extractor::PackedOSMIDs &m_osm_node_ids;
     std::shared_ptr<util::NodeBasedDynamicGraph> m_node_based_graph;
-    std::shared_ptr<RestrictionMap const> m_restriction_map;
 
     const std::unordered_set<NodeID> &m_barrier_nodes;
     const std::unordered_set<NodeID> &m_traffic_lights;
@@ -152,14 +153,16 @@ class EdgeBasedGraphFactory
 
     unsigned RenumberEdges();
 
-    std::vector<NBGToEBG> GenerateEdgeExpandedNodes();
+    std::vector<NBGToEBG> GenerateEdgeExpandedNodes(const WayRestrictionMap &way_restriction_map);
 
     void GenerateEdgeExpandedEdges(ScriptingEnvironment &scripting_environment,
                                    const std::string &original_edge_data_filename,
                                    const std::string &turn_lane_data_filename,
                                    const std::string &turn_weight_penalties_filename,
                                    const std::string &turn_duration_penalties_filename,
-                                   const std::string &turn_penalties_index_filename);
+                                   const std::string &turn_penalties_index_filename,
+                                   const RestrictionMap &restriction_map,
+                                   const WayRestrictionMap &way_restriction_map);
 
     NBGToEBG InsertEdgeBasedNode(const NodeID u, const NodeID v);
 
@@ -170,6 +173,9 @@ class EdgeBasedGraphFactory
     util::ConcurrentIDMap<util::guidance::BearingClass, BearingClassID> bearing_class_hash;
     std::vector<BearingClassID> bearing_class_by_node_based_node;
     util::ConcurrentIDMap<util::guidance::EntryClass, EntryClassID> entry_class_hash;
+
+    // a mapping from a restriction way to the duplicate node
+    std::vector<NodeID> edge_based_node_by_via_way;
 };
 } // namespace extractor
 } // namespace osrm

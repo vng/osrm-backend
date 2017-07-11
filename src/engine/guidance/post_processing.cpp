@@ -20,6 +20,8 @@
 #include <limits>
 #include <utility>
 
+#include "util/debug.hpp"
+
 using osrm::util::angularDeviation;
 using osrm::extractor::guidance::getTurnDirection;
 using osrm::extractor::guidance::hasRampType;
@@ -251,6 +253,7 @@ void closeOffRoundabout(const bool on_roundabout,
 // that we come across.
 std::vector<RouteStep> postProcess(std::vector<RouteStep> steps)
 {
+    util::guidance::print(steps);
     // the steps should always include the first/last step in form of a location
     BOOST_ASSERT(steps.size() >= 2);
     if (steps.size() == 2)

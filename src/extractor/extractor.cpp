@@ -23,6 +23,7 @@
 
 #include "extractor/compressed_edge_container.hpp"
 #include "extractor/restriction_map.hpp"
+#include "extractor/way_restriction_map.hpp"
 #include "util/static_graph.hpp"
 #include "util/static_rtree.hpp"
 
@@ -470,26 +471,34 @@ Extractor::BuildEdgeExpandedGraph(ScriptingEnvironment &scripting_environment,
 
     util::NameTable name_table(config.names_file_name);
 
-    auto restriction_map = std::make_shared<RestrictionMap>(turn_restrictions);
-    EdgeBasedGraphFactory edge_based_graph_factory(
-        node_based_graph,
-        compressed_edge_container,
-        barrier_nodes,
-        traffic_lights,
-        std::const_pointer_cast<RestrictionMap const>(restriction_map),
-        coordinates,
-        osm_node_ids,
-        scripting_environment.GetProfileProperties(),
-        name_table,
-        turn_lane_map);
+    EdgeBasedGraphFactory edge_based_graph_factory(node_based_graph,
+                                                   compressed_edge_container,
+                                                   barrier_nodes,
+                                                   traffic_lights,
+                                                   coordinates,
+                                                   osm_node_ids,
+                                                   scripting_environment.GetProfileProperties(),
+                                                   name_table,
+                                                   turn_lane_map);
 
-    edge_based_graph_factory.Run(scripting_environment,
-                                 config.edge_output_path,
-                                 config.turn_lane_data_file_name,
-                                 config.turn_weight_penalties_path,
-                                 config.turn_duration_penalties_path,
-                                 config.turn_penalties_index_path,
-                                 config.cnbg_ebg_graph_mapping_output_path);
+    auto const number_of_edge_based_nodes = [&]() {
+        // scoped to relase intermediate datastructures right after the call
+        RestrictionMap via_node_restriction_map(turn_restrictions);
+        WayRestrictionMap via_way_restriction_map(turn_restrictions);
+        turn_restrictions.clear();
+        turn_restrictions.shrink_to_fit();
+
+        edge_based_graph_factory.Run(scripting_environment,
+                                     config.edge_output_path,
+                                     config.turn_lane_data_file_name,
+                                     config.turn_weight_penalties_path,
+                                     config.turn_duration_penalties_path,
+                                     config.turn_penalties_index_path,
+                                     config.cnbg_ebg_graph_mapping_output_path,
+                                     via_node_restriction_map,
+                                     via_way_restriction_map);
+        return edge_based_graph_factory.GetHighestEdgeID() + via_way_restriction_map.Size();
+    }();
 
     compressed_edge_container.PrintStatistics();
 
@@ -531,7 +540,6 @@ Extractor::BuildEdgeExpandedGraph(ScriptingEnvironment &scripting_environment,
     edge_based_graph_factory.GetEdgeBasedNodeSegments(edge_based_node_segments);
     edge_based_graph_factory.GetStartPointMarkers(node_is_startpoint);
     edge_based_graph_factory.GetEdgeBasedNodeWeights(edge_based_node_weights);
-    auto max_edge_id = edge_based_graph_factory.GetHighestEdgeID();
 
     const std::size_t number_of_node_based_nodes = node_based_graph->GetNumberOfNodes();
 
@@ -545,7 +553,7 @@ Extractor::BuildEdgeExpandedGraph(ScriptingEnvironment &scripting_environment,
     TIMER_STOP(write_intersections);
     util::Log() << "ok, after " << TIMER_SEC(write_intersections) << "s";
 
-    return std::make_pair(number_of_node_based_nodes, max_edge_id);
+    return std::make_pair(number_of_node_based_nodes, number_of_edge_based_nodes);
 }
 
 /**
