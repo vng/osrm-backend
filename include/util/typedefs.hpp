@@ -59,6 +59,9 @@ static const OSMNodeID MIN_OSM_NODEID = OSMNodeID{std::numeric_limits<std::uint6
 static const OSMWayID MAX_OSM_WAYID = OSMWayID{std::numeric_limits<std::uint32_t>::max()};
 static const OSMWayID MIN_OSM_WAYID = OSMWayID{std::numeric_limits<std::uint32_t>::min()};
 
+static const uint64_t SPECIAL_OSMID = std::numeric_limits<std::uint64_t>::max();
+using OSMID = uint64_t;
+
 using OSMNodeID_weak = std::uint64_t;
 using OSMEdgeID_weak = std::uint64_t;
 

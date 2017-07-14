@@ -79,6 +79,7 @@ struct ExtractorConfig
         intersection_class_data_output_path = basepath + ".osrm.icd";
         compressed_node_based_graph_output_path = basepath + ".osrm.cnbg";
         cnbg_ebg_graph_mapping_output_path = basepath + ".osrm.cnbg_to_ebg";
+        geometry_info_filename = basepath + ".osrm.nodes_geom";
     }
 
     boost::filesystem::path input_path;
@@ -104,6 +105,7 @@ struct ExtractorConfig
     std::string turn_duration_penalties_path;
     std::string compressed_node_based_graph_output_path;
     std::string cnbg_ebg_graph_mapping_output_path;
+    std::string geometry_info_filename;
 
     unsigned requested_num_threads;
     unsigned small_component_size;

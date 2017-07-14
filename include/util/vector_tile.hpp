@@ -29,7 +29,7 @@ const constexpr std::uint32_t GEOMETRY_TYPE_LINE = 2;
 const constexpr std::uint32_t VARIANT_TYPE_STRING = 1;
 const constexpr std::uint32_t VARIANT_TYPE_FLOAT = 2;
 const constexpr std::uint32_t VARIANT_TYPE_DOUBLE = 3;
-
+const constexpr std::uint32_t VARIANT_TYPE_INT32 = 4;
 const constexpr std::uint32_t VARIANT_TYPE_UINT64 = 5;
 const constexpr std::uint32_t VARIANT_TYPE_SINT64 = 6;
 const constexpr std::uint32_t VARIANT_TYPE_BOOL = 7;

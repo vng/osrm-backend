@@ -59,7 +59,8 @@ struct InternalExtractorEdge
     using DurationData = detail::ByEdgeOrByMeterValue;
 
     explicit InternalExtractorEdge()
-        : result(MIN_OSM_NODEID,
+        : result(SPECIAL_OSMID,
+                 MIN_OSM_NODEID,
                  MIN_OSM_NODEID,
                  SPECIAL_NODEID,
                  0,
@@ -79,7 +80,8 @@ struct InternalExtractorEdge
     {
     }
 
-    explicit InternalExtractorEdge(OSMNodeID source,
+    explicit InternalExtractorEdge(OSMID osm_way_id,
+                                   OSMNodeID source,
                                    OSMNodeID target,
                                    NodeID name_id,
                                    WeightData weight_data,
@@ -96,7 +98,8 @@ struct InternalExtractorEdge
                                    LaneDescriptionID lane_description,
                                    guidance::RoadClassification road_classification,
                                    util::Coordinate source_coordinate)
-        : result(source,
+        : result(osm_way_id,
+                 source,
                  target,
                  name_id,
                  0,
@@ -129,7 +132,8 @@ struct InternalExtractorEdge
     // necessary static util functions for stxxl's sorting
     static InternalExtractorEdge min_osm_value()
     {
-        return InternalExtractorEdge(MIN_OSM_NODEID,
+        return InternalExtractorEdge(SPECIAL_OSMID,
+                                     MIN_OSM_NODEID,
                                      MIN_OSM_NODEID,
                                      SPECIAL_NODEID,
                                      WeightData(),
@@ -149,7 +153,8 @@ struct InternalExtractorEdge
     }
     static InternalExtractorEdge max_osm_value()
     {
-        return InternalExtractorEdge(MAX_OSM_NODEID,
+        return InternalExtractorEdge(SPECIAL_OSMID,
+                                     MAX_OSM_NODEID,
                                      MAX_OSM_NODEID,
                                      SPECIAL_NODEID,
                                      WeightData(),
