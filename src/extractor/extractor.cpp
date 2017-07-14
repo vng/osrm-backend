@@ -458,6 +458,17 @@ Extractor::BuildEdgeExpandedGraph(ScriptingEnvironment &scripting_environment,
     auto node_based_graph =
         LoadNodeBasedGraph(barrier_nodes, traffic_lights, coordinates, osm_node_ids);
 
+    /* Need to make a copy of graph, because we need original graph to extract OSM way id's.
+     * Easy way to do that - load it twicely. One copy wouldn't be changed.
+     */
+    barrier_nodes.clear();
+    traffic_lights.clear();
+    coordinates.clear();
+    extractor::PackedOSMIDs tmp_osm_node_ids;
+
+    auto node_based_graph_origin =
+        LoadNodeBasedGraph(barrier_nodes, traffic_lights, coordinates, tmp_osm_node_ids);
+
     CompressedEdgeContainer compressed_edge_container;
     GraphCompressor graph_compressor;
     graph_compressor.Compress(barrier_nodes,
@@ -470,6 +481,7 @@ Extractor::BuildEdgeExpandedGraph(ScriptingEnvironment &scripting_environment,
 
     EdgeBasedGraphFactory edge_based_graph_factory(
         node_based_graph,
+        node_based_graph_origin,
         compressed_edge_container,
         barrier_nodes,
         traffic_lights,
@@ -486,7 +498,8 @@ Extractor::BuildEdgeExpandedGraph(ScriptingEnvironment &scripting_environment,
                                  config.GetPath(".osrm.turn_weight_penalties").string(),
                                  config.GetPath(".osrm.turn_duration_penalties").string(),
                                  config.GetPath(".osrm.turn_penalties_index").string(),
-                                 config.GetPath(".osrm.cnbg_to_ebg").string());
+                                 config.GetPath(".osrm.cnbg_to_ebg").string(),
+                                 config.GetPath(".osrm.nodes_geom").string());
 
     compressed_edge_container.PrintStatistics();
 

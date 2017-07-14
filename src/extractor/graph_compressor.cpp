@@ -194,6 +194,21 @@ void GraphCompressor::Compress(const std::unordered_set<NodeID> &barrier_nodes,
                 graph.SetTarget(forward_e1, node_w);
                 graph.SetTarget(reverse_e1, node_u);
 
+                const OSMID forward_osm_way_id1 = graph.GetEdgeData(forward_e1).osm_way_id;
+                const OSMID forward_osm_way_id2 = graph.GetEdgeData(forward_e2).osm_way_id;
+
+                BOOST_ASSERT(forward_osm_way_id1 != SPECIAL_OSMID);
+                BOOST_ASSERT(forward_osm_way_id2 != SPECIAL_OSMID);
+
+                const OSMID reverse_osm_way_id1 = graph.GetEdgeData(reverse_e1).osm_way_id;
+                const OSMID reverse_osm_way_id2 = graph.GetEdgeData(reverse_e2).osm_way_id;
+
+                BOOST_ASSERT(reverse_osm_way_id1 != SPECIAL_OSMID);
+                BOOST_ASSERT(reverse_osm_way_id2 != SPECIAL_OSMID);
+
+                BOOST_ASSERT(forward_osm_way_id1 == forward_osm_way_id2);
+                BOOST_ASSERT(reverse_osm_way_id1 == reverse_osm_way_id2);
+
                 // remove e2's (if bidir, otherwise only one)
                 graph.DeleteEdge(node_v, forward_e2);
                 graph.DeleteEdge(node_v, reverse_e2);
@@ -213,7 +228,9 @@ void GraphCompressor::Compress(const std::unordered_set<NodeID> &barrier_nodes,
                                                  forward_weight1,
                                                  forward_weight2,
                                                  forward_duration1,
-                                                 forward_duration2);
+                                                 forward_duration2,
+                                                 forward_osm_way_id1,
+                                                 forward_osm_way_id2);
                 geometry_compressor.CompressEdge(reverse_e1,
                                                  reverse_e2,
                                                  node_v,
@@ -221,7 +238,9 @@ void GraphCompressor::Compress(const std::unordered_set<NodeID> &barrier_nodes,
                                                  reverse_weight1,
                                                  reverse_weight2,
                                                  reverse_duration1,
-                                                 reverse_duration2);
+                                                 reverse_duration2,
+                                                 reverse_osm_way_id1,
+                                                 reverse_osm_way_id2);
             }
         }
     }
@@ -237,7 +256,7 @@ void GraphCompressor::Compress(const std::unordered_set<NodeID> &barrier_nodes,
         {
             const EdgeData &data = graph.GetEdgeData(edge_id);
             const NodeID target = graph.GetTarget(edge_id);
-            geometry_compressor.AddUncompressedEdge(edge_id, target, data.weight, data.duration);
+            geometry_compressor.AddUncompressedEdge(edge_id, target, data.weight, data.duration, data.osm_way_id);
         }
     }
 }

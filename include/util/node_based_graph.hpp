@@ -19,14 +19,15 @@ namespace util
 struct NodeBasedEdgeData
 {
     NodeBasedEdgeData()
-        : weight(INVALID_EDGE_WEIGHT), duration(INVALID_EDGE_WEIGHT), edge_id(SPECIAL_NODEID),
+        : osm_way_id(SPECIAL_OSMID), weight(INVALID_EDGE_WEIGHT), duration(INVALID_EDGE_WEIGHT), edge_id(SPECIAL_NODEID),
           name_id(std::numeric_limits<unsigned>::max()), reversed(false), roundabout(false),
           circular(false), travel_mode(TRAVEL_MODE_INACCESSIBLE),
           lane_description_id(INVALID_LANE_DESCRIPTIONID)
     {
     }
 
-    NodeBasedEdgeData(EdgeWeight weight,
+    NodeBasedEdgeData(OSMID osm_way_id_,
+                      EdgeWeight weight,
                       EdgeWeight duration,
                       unsigned edge_id,
                       unsigned name_id,
@@ -38,13 +39,14 @@ struct NodeBasedEdgeData
                       extractor::TravelMode travel_mode,
                       extractor::ClassData classes,
                       const LaneDescriptionID lane_description_id)
-        : weight(weight), duration(duration), edge_id(edge_id), name_id(name_id),
+        : osm_way_id(osm_way_id_), weight(weight), duration(duration), edge_id(edge_id), name_id(name_id),
           reversed(reversed), roundabout(roundabout), circular(circular), startpoint(startpoint),
           restricted(restricted), travel_mode(travel_mode), classes(classes),
           lane_description_id(lane_description_id)
     {
     }
 
+    OSMID osm_way_id;
     EdgeWeight weight;
     EdgeWeight duration;
     unsigned edge_id;
@@ -61,7 +63,8 @@ struct NodeBasedEdgeData
 
     bool IsCompatibleTo(const NodeBasedEdgeData &other) const
     {
-        return (reversed == other.reversed) && (roundabout == other.roundabout) &&
+        return (osm_way_id == other.osm_way_id) &&
+               (reversed == other.reversed) && (roundabout == other.roundabout) &&
                (circular == other.circular) && (startpoint == other.startpoint) &&
                (travel_mode == other.travel_mode) && (classes == other.classes) &&
                (road_classification == other.road_classification) &&
@@ -87,6 +90,7 @@ NodeBasedDynamicGraphFromEdges(NodeID number_of_nodes,
         input_edge_list,
         [](NodeBasedDynamicGraph::InputEdge &output_edge,
            const extractor::NodeBasedEdge &input_edge) {
+            output_edge.data.osm_way_id = input_edge.osm_way_id;
             output_edge.data.weight = input_edge.weight;
             output_edge.data.duration = input_edge.duration;
             output_edge.data.roundabout = input_edge.roundabout;

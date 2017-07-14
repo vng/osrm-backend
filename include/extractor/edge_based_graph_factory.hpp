@@ -69,7 +69,117 @@ class EdgeBasedGraphFactory
     EdgeBasedGraphFactory(const EdgeBasedGraphFactory &) = delete;
     EdgeBasedGraphFactory &operator=(const EdgeBasedGraphFactory &) = delete;
 
+    struct GeometryInfo
+    {
+      using NodesList = std::vector<OSMID>;
+
+      GeometryInfo()
+        : osm_way_id(SPECIAL_OSMID)
+      {}
+
+      void AddNode(OSMID osm_id)
+      {
+        nodes.emplace_back(osm_id);
+      }
+
+      template <typename TReader>
+      void LoadT(TReader & reader)
+      {
+        std::uint32_t num = 0;
+        reader.Read((char*)&osm_way_id, sizeof(OSMID));
+        reader.Read((char*)&num, sizeof(num));
+        nodes.resize(num);
+        reader.Read(nodes.data(), sizeof(OSMID) * num);
+      }
+
+      void Load(std::ifstream& stream)
+      {
+        std::uint32_t num = 0;
+        stream.read((char*)&osm_way_id, sizeof(OSMID));
+        stream.read((char*)&num, sizeof(num));
+        nodes.resize(num);
+        stream.read((char*)nodes.data(), sizeof(OSMID) * num);
+      }
+
+      void Write(std::ofstream& stream)
+      {
+        const std::uint32_t num = nodes.size();
+        stream.write((char*)&osm_way_id, sizeof(OSMID));
+        stream.write((char*)&num, sizeof(num));
+        for (std::uint32_t i = 0; i < num; ++i)
+          stream.write((char*)&(nodes[i]), sizeof(OSMID));
+      }
+
+      bool operator == (const GeometryInfo& other) const
+      {
+        return (osm_way_id == other.osm_way_id) && (nodes == other.nodes);
+      }
+
+      bool operator != (const GeometryInfo& other) const
+      {
+        return !(*this == other);
+      }
+
+      OSMID osm_way_id;
+      NodesList nodes;
+    };
+
+    class GeometryInfoContainer
+    {
+    public:
+       using GeometryList = std::vector<GeometryInfo>;
+
+       GeometryInfo & operator [] (size_t idx)
+       {
+           BOOST_ASSERT(idx < m_data.size());
+           return m_data[idx];
+       }
+
+       void resize(size_t new_size)
+       {
+           m_data.resize(new_size);
+       }
+
+       size_t size() const
+       {
+           return m_data.size();
+       }
+
+       void Load(std::string const & fileName)
+       {
+           std::ifstream in_file(fileName);
+           if (!in_file.is_open())
+               throw util::exception(std::string("Can't open input file ") + fileName);
+
+           uint32_t num = 0;
+           in_file.read((char*)&num, sizeof(num));
+           m_data.resize(num);
+           for (uint32_t i = 0; i < num; ++i)
+               m_data[i].Load(in_file);
+
+           in_file.close();
+       }
+
+       void Save(std::string const & fileName)
+       {
+           std::ofstream out_file(fileName);
+           if (!out_file.is_open())
+               throw util::exception(std::string("Can't open output file ") + fileName);
+
+           uint32_t const num = m_data.size();
+           out_file.write((char*)&num, sizeof(num));
+           for (uint32_t i = 0; i < num; ++i)
+               m_data[i].Write(out_file);
+
+           out_file.close();
+       }
+
+    private:
+       GeometryList m_data;
+    };
+
     explicit EdgeBasedGraphFactory(std::shared_ptr<util::NodeBasedDynamicGraph> node_based_graph,
+                                   std::shared_ptr<util::NodeBasedDynamicGraph> node_based_graph_origin,
                                    CompressedEdgeContainer &compressed_edge_container,
                                    const std::unordered_set<NodeID> &barrier_nodes,
                                    const std::unordered_set<NodeID> &traffic_lights,
@@ -86,7 +196,8 @@ class EdgeBasedGraphFactory
              const std::string &turn_weight_penalties_filename,
              const std::string &turn_duration_penalties_filename,
              const std::string &turn_penalties_index_filename,
-             const std::string &cnbg_ebg_mapping_path);
+             const std::string &cnbg_ebg_mapping_path,
+             const std::string &geometry_info_filename);
 
     // The following get access functions destroy the content in the factory
     void GetEdgeBasedEdges(util::DeallocatingVector<EdgeBasedEdge> &edges);
@@ -94,6 +205,7 @@ class EdgeBasedGraphFactory
     void GetEdgeBasedNodeSegments(std::vector<EdgeBasedNodeSegment> &nodes);
     void GetStartPointMarkers(std::vector<bool> &node_is_startpoint);
     void GetEdgeBasedNodeWeights(std::vector<EdgeWeight> &output_node_weights);
+    void ExtractGeometry(const std::string &geometry_info_filename);
 
     // These access functions don't destroy the content
     const std::vector<BearingClassID> &GetBearingClassIds() const;
@@ -134,6 +246,7 @@ class EdgeBasedGraphFactory
     const std::vector<util::Coordinate> &m_coordinates;
     const extractor::PackedOSMIDs &m_osm_node_ids;
     std::shared_ptr<util::NodeBasedDynamicGraph> m_node_based_graph;
+    std::shared_ptr<util::NodeBasedDynamicGraph> m_node_based_graph_origin;
     std::shared_ptr<RestrictionMap const> m_restriction_map;
 
     const std::unordered_set<NodeID> &m_barrier_nodes;

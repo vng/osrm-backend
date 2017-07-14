@@ -43,6 +43,7 @@ namespace extractor
 
 EdgeBasedGraphFactory::EdgeBasedGraphFactory(
     std::shared_ptr<util::NodeBasedDynamicGraph> node_based_graph,
+    std::shared_ptr<util::NodeBasedDynamicGraph> node_based_graph_origin,
     CompressedEdgeContainer &compressed_edge_container,
     const std::unordered_set<NodeID> &barrier_nodes,
     const std::unordered_set<NodeID> &traffic_lights,
@@ -53,7 +54,7 @@ EdgeBasedGraphFactory::EdgeBasedGraphFactory(
     const util::NameTable &name_table,
     guidance::LaneDescriptionMap &lane_description_map)
     : m_max_edge_id(0), m_coordinates(coordinates), m_osm_node_ids(osm_node_ids),
-      m_node_based_graph(std::move(node_based_graph)),
+      m_node_based_graph(std::move(node_based_graph)), m_node_based_graph_origin(std::move(node_based_graph_origin)),
       m_restriction_map(std::move(restriction_map)), m_barrier_nodes(barrier_nodes),
       m_traffic_lights(traffic_lights), m_compressed_edge_container(compressed_edge_container),
       profile_properties(std::move(profile_properties)), name_table(name_table),
@@ -192,7 +193,8 @@ void EdgeBasedGraphFactory::Run(ScriptingEnvironment &scripting_environment,
                                 const std::string &turn_weight_penalties_filename,
                                 const std::string &turn_duration_penalties_filename,
                                 const std::string &turn_penalties_index_filename,
-                                const std::string &cnbg_ebg_mapping_path)
+                                const std::string &cnbg_ebg_mapping_path,
+                                const std::string &geometry_info_filename)
 {
     TIMER_START(renumber);
     m_max_edge_id = RenumberEdges() - 1;
@@ -215,10 +217,15 @@ void EdgeBasedGraphFactory::Run(ScriptingEnvironment &scripting_environment,
 
     TIMER_STOP(generate_edges);
 
+    TIMER_START(extract_geometry);
+    ExtractGeometry(geometry_info_filename);
+    TIMER_STOP(extract_geometry);
+
     util::Log() << "Timing statistics for edge-expanded graph:";
     util::Log() << "Renumbering edges: " << TIMER_SEC(renumber) << "s";
     util::Log() << "Generating nodes: " << TIMER_SEC(generate_nodes) << "s";
     util::Log() << "Generating edges: " << TIMER_SEC(generate_edges) << "s";
+    util::Log() << "Extract geometry: " << TIMER_SEC(extract_geometry) << "s";
 }
 
 /// Renumbers all _forward_ edges and sets the edge_id.
@@ -718,6 +725,108 @@ void EdgeBasedGraphFactory::GenerateEdgeExpandedEdges(
                 << m_restriction_map->size() << " restrictions";
     util::Log() << "  skips " << skipped_uturns_counter << " U turns";
     util::Log() << "  skips " << skipped_barrier_turns_counter << " turns over barriers";
+}
+
+void EdgeBasedGraphFactory::ExtractGeometry(const std::string &geometry_info_filename)
+{
+    const std::uint32_t new_node_num = m_max_edge_id + 1;
+    std::vector<bool> processed_node(new_node_num, false);
+
+    util::Log() << "Collect geometry";
+
+    GeometryInfoContainer geometry_info;
+    geometry_info.resize(new_node_num);
+
+    std::uint64_t num_geometry_points = 0;
+
+    const std::uint64_t node_num = m_node_based_graph->GetNumberOfNodes();
+    util::UnbufferedLog log;
+    util::Percent progress(log, node_num);
+    for (NodeID node = 0; node < node_num; ++node)
+    {
+        for (EdgeID edge : m_node_based_graph->GetAdjacentEdgeRange(node))
+        {
+            const EdgeData& edge_data = m_node_based_graph->GetEdgeData(edge);
+            if (edge_data.reversed)
+                continue;
+
+            NodeID target_node_id = m_node_based_graph->GetTarget(edge);
+
+            GeometryInfo info;
+            info.osm_way_id = edge_data.osm_way_id;
+
+            if (m_compressed_edge_container.HasEntryForID(edge))
+            {
+                const CompressedEdgeContainer::OnewayEdgeBucket & via_nodes = m_compressed_edge_container.GetBucketReference(edge);
+
+                std::vector<NodeID> nodes;
+                if (via_nodes.front().node_id != node)
+                    nodes.push_back(node);
+
+                for (auto & iter : via_nodes)
+                    nodes.push_back(iter.node_id);
+
+                if (via_nodes.back().node_id != target_node_id)
+                    nodes.push_back(target_node_id);
+
+                std::uint64_t last_node = SPECIAL_NODEID;
+                const std::uint32_t n_count = nodes.size();
+                for (std::uint32_t i = 1; i < n_count; ++i)
+                {
+                    NodeID node1 = nodes[i - 1];
+                    NodeID node2 = nodes[i];
+
+                    if (node1 == node2)
+                    {
+                        util::Log(logWARNING) << "Equal node id's " << node1 << " == " << node2;
+                        throw util::exception("Invalid data.");
+                    }
+
+                    const EdgeID tmp_edge = m_node_based_graph_origin->FindEdge(node1, node2);
+                    if (tmp_edge == SPECIAL_EDGEID)
+                    {
+                        util::Log(logWARNING) << "Can't find edge " << node1 << " -> " << node2;
+                        throw util::exception("Invalid data.");
+                    }
+
+                    info.AddNode(static_cast<OSMID>(m_osm_node_ids[node1]));
+
+                    last_node = node2;
+                }
+
+                info.AddNode(static_cast<OSMID>(m_osm_node_ids[last_node]));
+            }
+            else
+            {
+                info.AddNode(static_cast<OSMID>(m_osm_node_ids[node]));
+                info.AddNode(static_cast<OSMID>(m_osm_node_ids[target_node_id]));
+            }
+
+            num_geometry_points += info.nodes.size();
+
+            if (processed_node[edge_data.edge_id])
+            {
+                if (geometry_info[edge_data.edge_id] != info)
+                {
+                    throw util::exception("Invalid logic or data");
+                }
+            }
+            else
+            {
+                processed_node[edge_data.edge_id] = true;
+                geometry_info[edge_data.edge_id] = info;
+            }
+        }
+
+        progress.PrintStatus(node);
+    }
+
+    util::Log() << "Request nodes: " << new_node_num;
+    
+    util::Log() << "Save geometry info";
+    geometry_info.Save(geometry_info_filename);
+
+    util::Log() << "Number of points in geometry: " << num_geometry_points; 
 }
 
 std::vector<util::guidance::BearingClass> EdgeBasedGraphFactory::GetBearingClasses() const

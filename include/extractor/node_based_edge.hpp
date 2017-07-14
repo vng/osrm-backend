@@ -16,7 +16,8 @@ struct NodeBasedEdge
 {
     NodeBasedEdge();
 
-    NodeBasedEdge(NodeID source,
+    NodeBasedEdge(OSMID osm_way_id_,
+                  NodeID source,
                   NodeID target,
                   NodeID name_id,
                   EdgeWeight weight,
@@ -35,6 +36,7 @@ struct NodeBasedEdge
 
     bool operator<(const NodeBasedEdge &other) const;
 
+    OSMID osm_way_id;                                 // 64 8
     NodeID source;                                    // 32 4
     NodeID target;                                    // 32 4
     NodeID name_id;                                   // 32 4
@@ -55,7 +57,8 @@ struct NodeBasedEdge
 
 struct NodeBasedEdgeWithOSM : NodeBasedEdge
 {
-    NodeBasedEdgeWithOSM(OSMNodeID source,
+    NodeBasedEdgeWithOSM(OSMID osm_way_id_,
+                         OSMNodeID source,
                          OSMNodeID target,
                          NodeID name_id,
                          EdgeWeight weight,
@@ -79,14 +82,15 @@ struct NodeBasedEdgeWithOSM : NodeBasedEdge
 // Impl.
 
 inline NodeBasedEdge::NodeBasedEdge()
-    : source(SPECIAL_NODEID), target(SPECIAL_NODEID), name_id(0), weight(0), duration(0),
+    : osm_way_id(SPECIAL_OSMID), source(SPECIAL_NODEID), target(SPECIAL_NODEID), name_id(0), weight(0), duration(0),
       forward(false), backward(false), roundabout(false), circular(false), startpoint(true),
       restricted(false), is_split(false), travel_mode(TRAVEL_MODE_INACCESSIBLE),
       lane_description_id(INVALID_LANE_DESCRIPTIONID)
 {
 }
 
-inline NodeBasedEdge::NodeBasedEdge(NodeID source,
+inline NodeBasedEdge::NodeBasedEdge(OSMID osm_way_id_,
+                                    NodeID source,
                                     NodeID target,
                                     NodeID name_id,
                                     EdgeWeight weight,
@@ -102,7 +106,7 @@ inline NodeBasedEdge::NodeBasedEdge(NodeID source,
                                     ClassData classes,
                                     const LaneDescriptionID lane_description_id,
                                     guidance::RoadClassification road_classification)
-    : source(source), target(target), name_id(name_id), weight(weight), duration(duration),
+    : osm_way_id(osm_way_id_), source(source), target(target), name_id(name_id), weight(weight), duration(duration),
       forward(forward), backward(backward), roundabout(roundabout), circular(circular),
       startpoint(startpoint), restricted(restricted), is_split(is_split), travel_mode(travel_mode),
       classes(classes), lane_description_id(lane_description_id),
@@ -127,7 +131,8 @@ inline bool NodeBasedEdge::operator<(const NodeBasedEdge &other) const
     return source < other.source;
 }
 
-inline NodeBasedEdgeWithOSM::NodeBasedEdgeWithOSM(OSMNodeID source,
+inline NodeBasedEdgeWithOSM::NodeBasedEdgeWithOSM(OSMID osm_way_id_,
+                                                  OSMNodeID source,
                                                   OSMNodeID target,
                                                   NodeID name_id,
                                                   EdgeWeight weight,
@@ -143,7 +148,8 @@ inline NodeBasedEdgeWithOSM::NodeBasedEdgeWithOSM(OSMNodeID source,
                                                   ClassData classes,
                                                   const LaneDescriptionID lane_description_id,
                                                   guidance::RoadClassification road_classification)
-    : NodeBasedEdge(SPECIAL_NODEID,
+    : NodeBasedEdge(osm_way_id_,
+                    SPECIAL_NODEID,
                     SPECIAL_NODEID,
                     name_id,
                     weight,
@@ -163,10 +169,10 @@ inline NodeBasedEdgeWithOSM::NodeBasedEdgeWithOSM(OSMNodeID source,
 {
 }
 
-static_assert(sizeof(extractor::NodeBasedEdge) == 28,
-              "Size of extractor::NodeBasedEdge type is "
-              "bigger than expected. This will influence "
-              "memory consumption.");
+// static_assert(sizeof(extractor::NodeBasedEdge) == 28,
+//               "Size of extractor::NodeBasedEdge type is "
+//               "bigger than expected. This will influence "
+//               "memory consumption.");
 
 } // ns extractor
 } // ns osrm
