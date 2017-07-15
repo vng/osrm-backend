@@ -30,7 +30,8 @@ namespace
 // Unrestricted search (Args is const PhantomNodes &):
 //   * use partition.GetQueryLevel to find the node query level based on source and target phantoms
 //   * allow to traverse all cells
-inline LevelID getNodeQueryLevel(const partition::MultiLevelPartitionView &partition,
+template<typename MultiLevelPartition>
+inline LevelID getNodeQueryLevel(const MultiLevelPartition &partition,
                                  NodeID node,
                                  const PhantomNodes &phantom_nodes)
 {
@@ -54,8 +55,8 @@ inline bool checkParentCellRestriction(CellID, const PhantomNodes &) { return tr
 // Restricted search (Args is LevelID, CellID):
 //   * use the fixed level for queries
 //   * check if the node cell is the same as the specified parent onr
-inline LevelID
-getNodeQueryLevel(const partition::MultiLevelPartitionView &, NodeID, LevelID level, CellID)
+template<typename MultiLevelPartition> inline LevelID
+getNodeQueryLevel(const MultiLevelPartition &, NodeID, LevelID level, CellID)
 {
     return level;
 }
@@ -130,10 +131,30 @@ retrievePackedPathFromHeap(const SearchEngineData<Algorithm>::QueryHeap &forward
     return packed_path;
 }
 
-template <bool DIRECTION, typename... Args>
+template <typename Algorithm, typename Callback>
+void ForEachSourceNodes(const datafacade::ContiguousInternalMemoryDataFacade<Algorithm> &facade,
+                        LevelID level, NodeID node, Callback const & fn)
+{
+    const auto & cell = facade.GetCellStorage().GetCell(level, facade.GetMultiLevelPartition().GetCell(level, node));
+    auto source = cell.GetSourceNodes().begin();
+    for (auto shortcut_weight : cell.GetInWeight(node))
+        fn(shortcut_weight, *source++);
+}
+
+template <typename Algorithm, typename Callback>
+void ForEachDestinationNodes(const datafacade::ContiguousInternalMemoryDataFacade<Algorithm> &facade,
+                             LevelID level, NodeID node, Callback const & fn)
+{
+    const auto & cell = facade.GetCellStorage().GetCell(level, facade.GetMultiLevelPartition().GetCell(level, node));
+    auto destination = cell.GetDestinationNodes().begin();
+    for (auto shortcut_weight : cell.GetOutWeight(node))
+        fn(shortcut_weight, *destination++);
+}
+
+template <bool DIRECTION, typename Algorithm, typename... Args>
 void routingStep(const datafacade::ContiguousInternalMemoryDataFacade<Algorithm> &facade,
-                 SearchEngineData<Algorithm>::QueryHeap &forward_heap,
-                 SearchEngineData<Algorithm>::QueryHeap &reverse_heap,
+                 typename SearchEngineData<Algorithm>::QueryHeap &forward_heap,
+                 typename SearchEngineData<Algorithm>::QueryHeap &reverse_heap,
                  NodeID &middle_node,
                  EdgeWeight &path_upper_bound,
                  const bool force_loop_forward,
@@ -141,7 +162,6 @@ void routingStep(const datafacade::ContiguousInternalMemoryDataFacade<Algorithm>
                  Args... args)
 {
     const auto &partition = facade.GetMultiLevelPartition();
-    const auto &cells = facade.GetCellStorage();
 
     const auto node = forward_heap.DeleteMin();
     const auto weight = forward_heap.GetKey(node);
@@ -173,12 +193,8 @@ void routingStep(const datafacade::ContiguousInternalMemoryDataFacade<Algorithm>
         if (DIRECTION == FORWARD_DIRECTION)
         {
             // Shortcuts in forward direction
-            const auto &cell = cells.GetCell(level, partition.GetCell(level, node));
-            auto destination = cell.GetDestinationNodes().begin();
-            for (auto shortcut_weight : cell.GetOutWeight(node))
+            ForEachDestinationNodes(facade, level, node, [&](EdgeWeight shortcut_weight, NodeID to)
             {
-                BOOST_ASSERT(destination != cell.GetDestinationNodes().end());
-                const NodeID to = *destination;
                 if (shortcut_weight != INVALID_EDGE_WEIGHT && node != to)
                 {
                     const EdgeWeight to_weight = weight + shortcut_weight;
@@ -193,18 +209,13 @@ void routingStep(const datafacade::ContiguousInternalMemoryDataFacade<Algorithm>
                         forward_heap.DecreaseKey(to, to_weight);
                     }
                 }
-                ++destination;
-            }
+            });
         }
         else
         {
             // Shortcuts in backward direction
-            const auto &cell = cells.GetCell(level, partition.GetCell(level, node));
-            auto source = cell.GetSourceNodes().begin();
-            for (auto shortcut_weight : cell.GetInWeight(node))
+            ForEachSourceNodes(facade, level, node, [&](EdgeWeight shortcut_weight, NodeID to)
             {
-                BOOST_ASSERT(source != cell.GetSourceNodes().end());
-                const NodeID to = *source;
                 if (shortcut_weight != INVALID_EDGE_WEIGHT && node != to)
                 {
                     const EdgeWeight to_weight = weight + shortcut_weight;
@@ -219,8 +230,7 @@ void routingStep(const datafacade::ContiguousInternalMemoryDataFacade<Algorithm>
                         forward_heap.DecreaseKey(to, to_weight);
                     }
                 }
-                ++source;
-            }
+            });
         }
     }
 
@@ -260,11 +270,11 @@ using UnpackedNodes = std::vector<NodeID>;
 using UnpackedEdges = std::vector<EdgeID>;
 using UnpackedPath = std::tuple<EdgeWeight, UnpackedNodes, UnpackedEdges>;
 
-template <typename... Args>
+template <typename Algorithm, typename... Args>
 UnpackedPath search(SearchEngineData<Algorithm> &engine_working_data,
                     const datafacade::ContiguousInternalMemoryDataFacade<Algorithm> &facade,
-                    SearchEngineData<Algorithm>::QueryHeap &forward_heap,
-                    SearchEngineData<Algorithm>::QueryHeap &reverse_heap,
+                    typename SearchEngineData<Algorithm>::QueryHeap &forward_heap,
+                    typename SearchEngineData<Algorithm>::QueryHeap &reverse_heap,
                     const bool force_loop_forward,
                     const bool force_loop_reverse,
                     EdgeWeight weight_upper_bound,
@@ -389,10 +399,11 @@ UnpackedPath search(SearchEngineData<Algorithm> &engine_working_data,
 }
 
 // Alias to be compatible with the CH-based search
+template <typename Algorithm>
 inline void search(SearchEngineData<Algorithm> &engine_working_data,
                    const datafacade::ContiguousInternalMemoryDataFacade<Algorithm> &facade,
-                   SearchEngineData<Algorithm>::QueryHeap &forward_heap,
-                   SearchEngineData<Algorithm>::QueryHeap &reverse_heap,
+                   typename SearchEngineData<Algorithm>::QueryHeap &forward_heap,
+                   typename SearchEngineData<Algorithm>::QueryHeap &reverse_heap,
                    EdgeWeight &weight,
                    std::vector<NodeID> &unpacked_nodes,
                    const bool force_loop_forward,
