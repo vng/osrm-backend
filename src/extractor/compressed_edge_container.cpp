@@ -121,8 +121,8 @@ void CompressedEdgeContainer::CompressEdge(const EdgeID edge_id_1,
     BOOST_ASSERT(SPECIAL_NODEID != target_node_id);
     BOOST_ASSERT(INVALID_SEGMENT_WEIGHT != weight1);
     BOOST_ASSERT(INVALID_SEGMENT_WEIGHT != weight2);
-    BOOST_ASSERT(SPECIAL_OSMID != osm_way_id1);
-    BOOST_ASSERT(SPECIAL_OSMID != osm_way_id2);
+    BOOST_ASSERT(SPECIAL_OSMID != osm_way_id_1);
+    BOOST_ASSERT(SPECIAL_OSMID != osm_way_id_2);
 
     // append list of removed edge_id plus via node to surviving edge id:
     // <surv_1, .. , surv_n, via_node_id, rem_1, .. rem_n
