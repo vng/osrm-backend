@@ -124,6 +124,8 @@ int Partitioner::Run(const PartitionerConfig &config)
                     << " bit size " << std::ceil(std::log2(level_to_num_cells[level] + 1));
     }
 
+    // This nodes renumbering breaks offline generator tool logic.
+    /*
     TIMER_START(renumber);
     auto permutation = makePermutation(edge_based_graph, partitions);
     renumber(edge_based_graph, permutation);
@@ -174,6 +176,7 @@ int Partitioner::Run(const PartitionerConfig &config)
     }
     TIMER_STOP(renumber);
     util::Log() << "Renumbered data in " << TIMER_SEC(renumber) << " seconds";
+    */
 
     TIMER_START(packed_mlp);
     MultiLevelPartition mlp{partitions, level_to_num_cells};
