@@ -2,11 +2,8 @@
 #define SHORTEST_PATH_HPP
 
 #include "engine/algorithm.hpp"
-#include "engine/datafacade/contiguous_internalmem_datafacade.hpp"
+#include "engine/data_decl.hpp"
 #include "engine/routing_algorithms/routing_base.hpp"
-#include "engine/routing_algorithms/routing_base_ch.hpp"
-#include "engine/routing_algorithms/routing_base_mld.hpp"
-#include "engine/search_engine_data.hpp"
 
 #include "util/typedefs.hpp"
 

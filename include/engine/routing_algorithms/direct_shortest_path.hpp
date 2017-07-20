@@ -2,9 +2,8 @@
 #define DIRECT_SHORTEST_PATH_HPP
 
 #include "engine/algorithm.hpp"
-#include "engine/datafacade/contiguous_internalmem_datafacade.hpp"
+#include "engine/data_decl.hpp"
 #include "engine/internal_route_result.hpp"
-#include "engine/search_engine_data.hpp"
 
 #include "util/typedefs.hpp"
 

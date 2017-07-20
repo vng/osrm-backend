@@ -4,10 +4,9 @@
 #include "extractor/guidance/turn_instruction.hpp"
 
 #include "engine/algorithm.hpp"
-#include "engine/datafacade/contiguous_internalmem_datafacade.hpp"
+#include "engine/data_decl.hpp"
 #include "engine/internal_route_result.hpp"
 #include "engine/phantom_node.hpp"
-#include "engine/search_engine_data.hpp"
 
 #include "util/coordinate_calculation.hpp"
 #include "util/guidance/turn_bearing.hpp"

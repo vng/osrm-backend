@@ -2,10 +2,10 @@
 #define OSRM_ENGINE_ROUTING_BASE_MLD_HPP
 
 #include "engine/algorithm.hpp"
-#include "engine/datafacade/contiguous_internalmem_datafacade.hpp"
+#include "engine/data_decl.hpp"
 #include "engine/routing_algorithms/routing_base.hpp"
-#include "engine/search_engine_data.hpp"
 
+#include "util/for_each_pair.hpp"
 #include "util/typedefs.hpp"
 
 #include <boost/assert.hpp>
@@ -74,8 +74,8 @@ inline bool checkParentCellRestriction(CellID cell, LevelID, CellID parent)
 using PackedEdge = std::tuple</*from*/ NodeID, /*to*/ NodeID, /*from_clique_arc*/ bool>;
 using PackedPath = std::vector<PackedEdge>;
 
-template <bool DIRECTION, typename OutIter>
-inline void retrievePackedPathFromSingleHeap(const SearchEngineData<Algorithm>::QueryHeap &heap,
+template <bool DIRECTION, typename Algorithm, typename OutIter>
+inline void retrievePackedPathFromSingleHeap(const typename SearchEngineData<Algorithm>::QueryHeap &heap,
                                              const NodeID middle,
                                              OutIter out)
 {
@@ -102,31 +102,30 @@ inline void retrievePackedPathFromSingleHeap(const SearchEngineData<Algorithm>::
     }
 }
 
-template <bool DIRECTION>
-inline PackedPath
-retrievePackedPathFromSingleHeap(const SearchEngineData<Algorithm>::QueryHeap &heap,
+template <bool DIRECTION, typename Algorithm> PackedPath
+retrievePackedPathFromSingleHeap(const typename SearchEngineData<Algorithm>::QueryHeap &heap,
                                  const NodeID middle)
 {
     PackedPath packed_path;
-    retrievePackedPathFromSingleHeap<DIRECTION>(heap, middle, std::back_inserter(packed_path));
+    retrievePackedPathFromSingleHeap<DIRECTION, Algorithm>(heap, middle, std::back_inserter(packed_path));
     return packed_path;
 }
 
 // Trace path from middle to start in the forward search space (in reverse)
 // and from middle to end in the reverse search space. Middle connects paths.
 
-inline PackedPath
-retrievePackedPathFromHeap(const SearchEngineData<Algorithm>::QueryHeap &forward_heap,
-                           const SearchEngineData<Algorithm>::QueryHeap &reverse_heap,
+template <typename Algorithm> PackedPath
+retrievePackedPathFromHeap(const typename SearchEngineData<Algorithm>::QueryHeap &forward_heap,
+                           const typename SearchEngineData<Algorithm>::QueryHeap &reverse_heap,
                            const NodeID middle)
 {
     // Retrieve start -> middle. Is in reverse order since tracing back starts from middle.
-    auto packed_path = retrievePackedPathFromSingleHeap<FORWARD_DIRECTION>(forward_heap, middle);
+    auto packed_path = retrievePackedPathFromSingleHeap<FORWARD_DIRECTION, Algorithm>(forward_heap, middle);
     std::reverse(begin(packed_path), end(packed_path));
 
     // Retrieve middle -> end. Is already in correct order, tracing starts from middle.
     auto into = std::back_inserter(packed_path);
-    retrievePackedPathFromSingleHeap<REVERSE_DIRECTION>(reverse_heap, middle, into);
+    retrievePackedPathFromSingleHeap<REVERSE_DIRECTION, Algorithm>(reverse_heap, middle, into);
 
     return packed_path;
 }
@@ -333,7 +332,7 @@ UnpackedPath search(SearchEngineData<Algorithm> &engine_working_data,
     }
 
     // Get packed path as edges {from node ID, to node ID, from_clique_arc}
-    auto packed_path = retrievePackedPathFromHeap(forward_heap, reverse_heap, middle);
+    auto packed_path = retrievePackedPathFromHeap<Algorithm>(forward_heap, reverse_heap, middle);
 
     // Beware the edge case when start, middle, end are all the same.
     // In this case we return a single node, no edges. We also don't unpack.
@@ -453,11 +452,11 @@ void unpackPath(const FacadeT &facade,
     annotatePath(facade, phantom_nodes, unpacked_nodes, unpacked_edges, unpacked_path);
 }
 
-inline double
+template <typename Algorithm> double
 getNetworkDistance(SearchEngineData<Algorithm> &engine_working_data,
                    const datafacade::ContiguousInternalMemoryDataFacade<Algorithm> &facade,
-                   SearchEngineData<Algorithm>::QueryHeap &forward_heap,
-                   SearchEngineData<Algorithm>::QueryHeap &reverse_heap,
+                   typename SearchEngineData<Algorithm>::QueryHeap &forward_heap,
+                   typename SearchEngineData<Algorithm>::QueryHeap &reverse_heap,
                    const PhantomNode &source_phantom,
                    const PhantomNode &target_phantom,
                    EdgeWeight weight_upper_bound = INVALID_EDGE_WEIGHT)

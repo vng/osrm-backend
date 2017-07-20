@@ -2,9 +2,10 @@
 #define MAP_MATCHING_HPP
 
 #include "engine/algorithm.hpp"
-#include "engine/datafacade/contiguous_internalmem_datafacade.hpp"
+#include "engine/data_decl.hpp"
 #include "engine/map_matching/sub_matching.hpp"
-#include "engine/search_engine_data.hpp"
+
+#include <boost/optional.hpp>
 
 #include <vector>
 

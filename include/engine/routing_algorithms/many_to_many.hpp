@@ -2,8 +2,8 @@
 #define MANY_TO_MANY_ROUTING_HPP
 
 #include "engine/algorithm.hpp"
-#include "engine/datafacade/contiguous_internalmem_datafacade.hpp"
-#include "engine/search_engine_data.hpp"
+#include "engine/data_decl.hpp"
+#include "engine/phantom_node.hpp"
 
 #include "util/typedefs.hpp"
 

@@ -2,7 +2,8 @@
 #define OSRM_ENGINE_ROUTING_ALGORITHMS_TILE_TURNS_HPP
 
 #include "engine/algorithm.hpp"
-#include "engine/datafacade/contiguous_internalmem_datafacade.hpp"
+#include "engine/data_decl.hpp"
+#include "engine/datafacade/datafacade_base.hpp"
 
 #include "util/coordinate.hpp"
 #include "util/typedefs.hpp"
