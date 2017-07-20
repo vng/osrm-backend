@@ -6,6 +6,7 @@ local find_access_tag = require("lib/access").find_access_tag
 local Set = require('lib/set')
 local Sequence = require('lib/sequence')
 local Handlers = require("lib/handlers")
+local Measure = require("lib/measure")
 local next = next       -- bind to local for speed
 
 -- set profile properties
@@ -25,11 +26,6 @@ properties.weight_name                          = 'routability'
 -- (which slow down pre-processing).
 properties.call_tagless_node_function      = false
 
--- height of truck in meters
-properties.truck_height = 3.2
--- measurements conversion constants
-properties.inch_to_meters = 0.0254
-properties.feet_to_inches = 12
 
 local profile = {
   default_mode      = mode.driving,
@@ -41,6 +37,10 @@ local profile = {
   speed_reduction            = 0.8,
   traffic_light_penalty      = 2,
   u_turn_penalty             = 30,
+
+  -- bounds of truck in meters
+  truck_height = 3.2,
+  truck_width = 2.5,
 
   -- Note: this biases right-side driving.
   -- Should be inverted for left-driving countries.
@@ -353,7 +353,24 @@ function way_function(way, result)
   --- check trucks
   if data.hgv and not profile.hgv_tags_whitelist[data.hgv] then
     return
-  end  
+  end
+
+  -- check height
+  way_height = Measure.get_max_height(way)
+  if way_height then
+    if way_height <= profile.truck_height then
+      return
+    end
+  end
+
+  -- check width
+  way_width = Measure.get_max_width(way)
+  if way_width then
+    if way_width <= profile.truck_width then
+      return
+    end
+  end
+  
 
   handlers = Sequence {
     -- set the default mode for this profile. if can be changed later
