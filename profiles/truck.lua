@@ -41,6 +41,7 @@ local profile = {
   -- bounds of truck in meters
   truck_height = 3.2,
   truck_width = 2.5,
+  truck_weight = 20000,
 
   -- Note: this biases right-side driving.
   -- Should be inverted for left-driving countries.
@@ -367,6 +368,14 @@ function way_function(way, result)
   way_width = Measure.get_max_width(way)
   if way_width then
     if way_width <= profile.truck_width then
+      return
+    end
+  end
+
+  -- check maxweight
+  way_weight = Measure.get_max_weight(way)
+  if way_weight then
+    if way_weight <= profile.truck_weight then
       return
     end
   end
