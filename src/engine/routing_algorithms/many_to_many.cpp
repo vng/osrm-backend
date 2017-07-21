@@ -1,6 +1,8 @@
 #include "engine/routing_algorithms/many_to_many.hpp"
 #include "engine/routing_algorithms/routing_base_ch.hpp"
 
+#include "engine/search_engine_data.hpp"
+
 #include <boost/assert.hpp>
 
 #include <limits>

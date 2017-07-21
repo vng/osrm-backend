@@ -1,6 +1,8 @@
 #include "engine/routing_algorithms/alternative_path.hpp"
 #include "engine/routing_algorithms/routing_base_mld.hpp"
 
+#include "engine/search_engine_data.hpp"
+
 #include "util/static_assert.hpp"
 
 #include <boost/assert.hpp>

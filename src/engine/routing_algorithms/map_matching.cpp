@@ -2,6 +2,8 @@
 #include "engine/routing_algorithms/routing_base_ch.hpp"
 #include "engine/routing_algorithms/routing_base_mld.hpp"
 
+#include "engine/search_engine_data.hpp"
+
 #include "engine/map_matching/hidden_markov_model.hpp"
 #include "engine/map_matching/matching_confidence.hpp"
 #include "engine/map_matching/sub_matching.hpp"

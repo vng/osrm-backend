@@ -7,6 +7,8 @@
 #include "engine/api/trip_parameters.hpp"
 #include "engine/engine.hpp"
 #include "engine/engine_config.hpp"
+#include "engine/routing_algorithms/routing_base_ch.hpp"
+#include "engine/routing_algorithms/routing_base_mld.hpp"
 #include "engine/status.hpp"
 
 #include <memory>
