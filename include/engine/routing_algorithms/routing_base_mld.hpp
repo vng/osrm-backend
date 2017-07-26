@@ -289,8 +289,6 @@ void relaxOutgoingEdges(const DataFacade<Algorithm> &facade,
                         const Args &...args)
 {
     const auto &partition = facade.GetMultiLevelPartition();
-    const auto &cells = facade.GetCellStorage();
-    const auto &metric = facade.GetCellMetric();
 
     const auto level = getNodeQueryLevel(partition, heapNode.node, args...);
 
@@ -301,31 +299,12 @@ void relaxOutgoingEdges(const DataFacade<Algorithm> &facade,
     {
         if constexpr (DIRECTION == FORWARD_DIRECTION)
         {
-            // Shortcuts in forward direction
-            const auto &cell =
-                cells.GetCell(metric, level, partition.GetCell(level, heapNode.node));
-            auto destination = cell.GetDestinationNodes().begin();
-            auto distance = [&]() -> auto
+            ForEachDestinationNodes<IS_MAP_MATCHING>(facade, level, heapNode.node, [&](EdgeWeight shortcut_weight, NodeID to, auto distance)
             {
-                if constexpr (IS_MAP_MATCHING)
-                {
-                    return cell.GetOutDistance(heapNode.node).begin();
-                }
-                else
-                {
-                    return 0;
-                }
-            }();
-            for (auto shortcut_weight : cell.GetOutWeight(heapNode.node))
-            {
-                BOOST_ASSERT(destination != cell.GetDestinationNodes().end());
-                const NodeID to = *destination;
-
                 if (shortcut_weight != INVALID_EDGE_WEIGHT && heapNode.node != to)
                 {
                     const EdgeWeight to_weight = heapNode.weight + shortcut_weight;
                     BOOST_ASSERT(to_weight >= heapNode.weight);
-
                     if constexpr (IS_MAP_MATCHING)
                     {
                         const EdgeDistance to_distance = heapNode.data.distance + *distance;
@@ -337,35 +316,12 @@ void relaxOutgoingEdges(const DataFacade<Algorithm> &facade,
                         insertOrUpdate(forward_heap, to, to_weight, {heapNode.node, true});
                     }
                 }
-                ++destination;
-                if constexpr (IS_MAP_MATCHING)
-                {
-                    ++distance;
-                }
-            }
+            });
         }
         else
         {
-            // Shortcuts in backward direction
-            const auto &cell =
-                cells.GetCell(metric, level, partition.GetCell(level, heapNode.node));
-            auto source = cell.GetSourceNodes().begin();
-            auto distance = [&]() -> auto
+            ForEachSourceNodes<IS_MAP_MATCHING>(facade, level, heapNode.node, [&](EdgeWeight shortcut_weight, NodeID to, auto distance)
             {
-                if constexpr (IS_MAP_MATCHING)
-                {
-                    return cell.GetInDistance(heapNode.node).begin();
-                }
-                else
-                {
-                    return 0;
-                }
-            }();
-            for (auto shortcut_weight : cell.GetInWeight(heapNode.node))
-            {
-                BOOST_ASSERT(source != cell.GetSourceNodes().end());
-                const NodeID to = *source;
-
                 if (shortcut_weight != INVALID_EDGE_WEIGHT && heapNode.node != to)
                 {
                     const EdgeWeight to_weight = heapNode.weight + shortcut_weight;
@@ -381,12 +337,7 @@ void relaxOutgoingEdges(const DataFacade<Algorithm> &facade,
                         insertOrUpdate(forward_heap, to, to_weight, {heapNode.node, true});
                     }
                 }
-                ++source;
-                if constexpr (IS_MAP_MATCHING)
-                {
-                    ++distance;
-                }
-            }
+            });
         }
     }
 

@@ -674,6 +674,67 @@ class ContiguousInternalMemoryDataFacade<MLD> final
     {
     }
 };
+
+template <bool IS_MAP_MATCHING, typename Callback>
+void ForEachSourceNodes(ContiguousInternalMemoryDataFacade<MLD> const &facade,
+                        LevelID level,
+                        NodeID node,
+                        Callback const &fn)
+{
+    const auto &cell = facade.GetCellStorage().GetCell(
+        facade.GetCellMetric(), level, facade.GetMultiLevelPartition().GetCell(level, node));
+
+    auto distance = [&]() -> auto
+    {
+        if constexpr (IS_MAP_MATCHING)
+        {
+            return cell.GetInDistance(node).begin();
+        }
+        else
+        {
+            return 0;
+        }
+    }();
+
+    auto source = cell.GetSourceNodes().begin();
+    for (auto shortcut_weight : cell.GetInWeight(node))
+    {
+        fn(shortcut_weight, *source++, distance);
+        if constexpr (IS_MAP_MATCHING)
+            ++distance;
+    }
+}
+
+template <bool IS_MAP_MATCHING, typename Callback>
+void ForEachDestinationNodes(ContiguousInternalMemoryDataFacade<MLD> const &facade,
+                             LevelID level,
+                             NodeID node,
+                             Callback const &fn)
+{
+    const auto &cell = facade.GetCellStorage().GetCell(
+        facade.GetCellMetric(), level, facade.GetMultiLevelPartition().GetCell(level, node));
+
+    auto distance = [&]() -> auto
+    {
+        if constexpr (IS_MAP_MATCHING)
+        {
+            return cell.GetOutDistance(node).begin();
+        }
+        else
+        {
+            return 0;
+        }
+    }();
+
+    auto destination = cell.GetDestinationNodes().begin();
+    for (auto shortcut_weight : cell.GetOutWeight(node))
+    {
+        fn(shortcut_weight, *destination++, distance);
+        if constexpr (IS_MAP_MATCHING)
+            ++distance;
+    }
+}
+
 } // namespace osrm::engine::datafacade
 
 #endif // CONTIGUOUS_INTERNALMEM_DATAFACADE_HPP
