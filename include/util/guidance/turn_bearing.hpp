@@ -17,6 +17,7 @@ class TurnBearing
     TurnBearing(const double value = 0);
 
     double Get() const;
+    inline uint8_t GetDiscrete() const { return bearing; }
 
   private:
     std::uint8_t bearing;
