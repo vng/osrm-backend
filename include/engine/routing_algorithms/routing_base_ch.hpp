@@ -355,6 +355,12 @@ EdgeDistance calculateEBGNodeAnnotations(const DataFacade<Algorithm> &facade,
     return total_distance;
 }
 
+inline void initializeHeap(SearchEngineData<Algorithm> &engine_working_data, const DataFacade<Algorithm> &facade)
+{
+    const auto nodes_number = facade.GetNumberOfNodes();
+    engine_working_data.InitializeOrClearFirstThreadLocalStorage(nodes_number);
+}
+
 template <typename RandomIter, typename FacadeT>
 void unpackPath(const FacadeT &facade,
                 RandomIter packed_path_begin,

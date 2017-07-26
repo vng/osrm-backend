@@ -2,8 +2,7 @@
 #define OSRM_ENGINE_DATAFACADE_ALGORITHM_DATAFACADE_HPP
 
 #include "contractor/query_edge.hpp"
-#include "customizer/edge_based_graph.hpp"
-#include "extractor/edge_based_edge.hpp"
+#include "customizer/edge_based_graph_edgedata.hpp"
 #include "engine/algorithm.hpp"
 
 #include "partitioner/cell_storage.hpp"

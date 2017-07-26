@@ -1,6 +1,7 @@
 #ifndef OSRM_CUSTOMIZE_EDGE_BASED_GRAPH_HPP
 #define OSRM_CUSTOMIZE_EDGE_BASED_GRAPH_HPP
 
+#include "customizer/edge_based_graph_edgedata.hpp"
 #include "extractor/edge_based_edge.hpp"
 #include "partitioner/edge_based_graph.hpp"
 #include "partitioner/multi_level_graph.hpp"
@@ -13,11 +14,6 @@
 
 namespace osrm::customizer
 {
-
-struct EdgeBasedGraphEdgeData
-{
-    NodeID turn_id; // ID of the edge based node (node based edge)
-};
 
 template <typename EdgeDataT, storage::Ownership Ownership> class MultiLevelGraph;
 

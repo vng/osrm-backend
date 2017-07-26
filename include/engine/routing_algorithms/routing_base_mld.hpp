@@ -482,6 +482,15 @@ std::optional<std::pair<NodeID, EdgeWeight>> runSearch(const DataFacade<Algorith
     return {{middle, weight}};
 }
 
+template <typename Algorithm>
+void initializeHeap(SearchEngineData<Algorithm> &engine_working_data, const DataFacade<Algorithm> &facade)
+{
+    const auto nodes_number = facade.GetNumberOfNodes();
+    const auto border_nodes_number = facade.GetMaxBorderNodeID() + 1;
+    engine_working_data.InitializeOrClearFirstThreadLocalStorage(nodes_number, border_nodes_number);
+    engine_working_data.InitializeUnpackingCache(nodes_number, facade.GetNumberOfEdges());
+}
+
 template <typename Algorithm, typename... Args>
 UnpackedPath search(SearchEngineData<Algorithm> &engine_working_data,
                     const DataFacade<Algorithm> &facade,

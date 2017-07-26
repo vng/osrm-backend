@@ -42,9 +42,11 @@ unsigned getMedianSampleTime(const std::vector<unsigned> &timestamps)
     return *median;
 }
 
+// Note: map matching uses its own thread-local heaps; the shared (ADL-found)
+// initializeHeap from routing_base_ch/mld initializes the route-search storage instead.
 template <typename Algorithm>
-inline void initializeHeap(SearchEngineData<Algorithm> &engine_working_data,
-                           const DataFacade<Algorithm> &facade)
+inline void initializeMapMatchingHeap(SearchEngineData<Algorithm> &engine_working_data,
+                                      const DataFacade<Algorithm> &facade)
 {
 
     const auto nodes_number = facade.GetNumberOfNodes();
@@ -52,8 +54,9 @@ inline void initializeHeap(SearchEngineData<Algorithm> &engine_working_data,
 }
 
 template <>
-inline void initializeHeap<mld::Algorithm>(SearchEngineData<mld::Algorithm> &engine_working_data,
-                                           const DataFacade<mld::Algorithm> &facade)
+inline void
+initializeMapMatchingHeap<mld::Algorithm>(SearchEngineData<mld::Algorithm> &engine_working_data,
+                                          const DataFacade<mld::Algorithm> &facade)
 {
 
     const auto nodes_number = facade.GetNumberOfNodes();
@@ -143,7 +146,7 @@ SubMatchingList mapMatching(SearchEngineData<Algorithm> &engine_working_data,
         return sub_matchings;
     }
 
-    initializeHeap(engine_working_data, facade);
+    initializeMapMatchingHeap(engine_working_data, facade);
     auto &forward_heap = *engine_working_data.map_matching_forward_heap_1;
     auto &reverse_heap = *engine_working_data.map_matching_reverse_heap_1;
 
