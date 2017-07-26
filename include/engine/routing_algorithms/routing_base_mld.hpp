@@ -6,6 +6,7 @@
 #include "engine/routing_algorithms/routing_base.hpp"
 #include "engine/search_engine_data.hpp"
 
+#include "util/for_each_pair.hpp"
 #include "util/typedefs.hpp"
 
 #include <boost/assert.hpp>
@@ -139,8 +140,6 @@ void relaxOutgoingEdges(const DataFacade<Algorithm> &facade,
                         Args... args)
 {
     const auto &partition = facade.GetMultiLevelPartition();
-    const auto &cells = facade.GetCellStorage();
-    const auto &metric = facade.GetCellMetric();
 
     const auto level = getNodeQueryLevel(partition, node, args...);
 
@@ -149,40 +148,28 @@ void relaxOutgoingEdges(const DataFacade<Algorithm> &facade,
         if (DIRECTION == FORWARD_DIRECTION)
         {
             // Shortcuts in forward direction
-            const auto &cell = cells.GetCell(metric, level, partition.GetCell(level, node));
-            auto destination = cell.GetDestinationNodes().begin();
-            for (auto shortcut_weight : cell.GetOutWeight(node))
-            {
-                BOOST_ASSERT(destination != cell.GetDestinationNodes().end());
-                const NodeID to = *destination;
-
-                if (shortcut_weight != INVALID_EDGE_WEIGHT && node != to)
-                {
-                    const EdgeWeight to_weight = weight + shortcut_weight;
-                    BOOST_ASSERT(to_weight >= weight);
-                    if (!forward_heap.WasInserted(to))
+            ForEachDestinationNodes(
+                facade, level, node, [&](EdgeWeight shortcut_weight, NodeID to) {
+                    if (shortcut_weight != INVALID_EDGE_WEIGHT && node != to)
                     {
-                        forward_heap.Insert(to, to_weight, {node, true});
+                        const EdgeWeight to_weight = weight + shortcut_weight;
+                        BOOST_ASSERT(to_weight >= weight);
+                        if (!forward_heap.WasInserted(to))
+                        {
+                            forward_heap.Insert(to, to_weight, {node, true});
+                        }
+                        else if (to_weight < forward_heap.GetKey(to))
+                        {
+                            forward_heap.GetData(to) = {node, true};
+                            forward_heap.DecreaseKey(to, to_weight);
+                        }
                     }
-                    else if (to_weight < forward_heap.GetKey(to))
-                    {
-                        forward_heap.GetData(to) = {node, true};
-                        forward_heap.DecreaseKey(to, to_weight);
-                    }
-                }
-                ++destination;
-            }
+                });
         }
         else
         {
             // Shortcuts in backward direction
-            const auto &cell = cells.GetCell(metric, level, partition.GetCell(level, node));
-            auto source = cell.GetSourceNodes().begin();
-            for (auto shortcut_weight : cell.GetInWeight(node))
-            {
-                BOOST_ASSERT(source != cell.GetSourceNodes().end());
-                const NodeID to = *source;
-
+            ForEachSourceNodes(facade, level, node, [&](EdgeWeight shortcut_weight, NodeID to) {
                 if (shortcut_weight != INVALID_EDGE_WEIGHT && node != to)
                 {
                     const EdgeWeight to_weight = weight + shortcut_weight;
@@ -197,8 +184,7 @@ void relaxOutgoingEdges(const DataFacade<Algorithm> &facade,
                         forward_heap.DecreaseKey(to, to_weight);
                     }
                 }
-                ++source;
-            }
+            });
         }
     }
 
