@@ -48,13 +48,13 @@ namespace detail
 
 template <storage::Ownership Ownership> class MultiLevelPartitionImpl final
 {
+  public:
     // we will support at most 16 levels
     static const constexpr std::uint8_t MAX_NUM_LEVEL = 16;
     static const constexpr std::uint8_t NUM_PARTITION_BITS = sizeof(PartitionID) * CHAR_BIT;
 
     template <typename T> using Vector = util::ViewOrVector<T, Ownership>;
 
-  public:
     // Contains all data necessary to describe the level hierarchy
     struct LevelData
     {
@@ -146,6 +146,10 @@ template <storage::Ownership Ownership> class MultiLevelPartitionImpl final
     friend void serialization::write<Ownership>(storage::tar::FileWriter &writer,
                                                 const std::string &name,
                                                 const MultiLevelPartitionImpl &mlp);
+
+    // Used in compression tests only.
+    auto const &GetPartitionVector() const { return partition; }
+    auto const &GetLevelData() const { return *level_data; }
 
   private:
     auto MakeLevelData(const std::vector<std::uint32_t> &lidx_to_num_cells)
