@@ -39,7 +39,7 @@ local profile = {
   u_turn_penalty             = 30,
 
   -- bounds of truck in meters
-  truck_height = 3.2,
+  truck_height = 4.5,
   truck_width = 2.5,
   truck_weight = 20000,
 
