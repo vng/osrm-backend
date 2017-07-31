@@ -279,8 +279,50 @@ local profile = {
     ["nl:rural"] = 80,
     ["nl:trunk"] = 100,
     ["none"] = 140
+  },
+
+  truck_penalties = {
+    living_street   = 0.1,
+    residential     = 0.1,
+    service         = 0.1,
+    street          = 0.1,
+    unclassified    = 0.1,
+
+    secondary       = 0.5
   }
 }
+
+function truck_penalties(profile,way,result,data)
+  local truck_penalty = 1.0
+  local hw = way:get_value_by_key("highway")
+  if hw and profile.truck_penalties[hw] then
+    truck_penalty = profile.truck_penalties[hw]
+
+--print(truck_penalty)
+
+    if result.forward_speed > 0 then
+      if not result.forward_rate then
+        result.forward_rate = (result.forward_speed * truck_penalty) / 3.6
+      else
+        result.forward_rate = math.min(result.forward_rate, (result.forward_speed * truck_penalty) / 3.6)
+      end
+    end
+    if result.backward_speed > 0 then
+      if not result.backward_rate then
+        result.backward_rate = (result.backward_speed * truck_penalty) / 3.6
+      else
+        result.backward_rate = math.min(result.backward_rate, (result.backward_speed * truck_penalty) / 3.6)
+      end
+    end
+    if result.duration > 0 then
+      if not result.weight then
+        result.weight = result.duration / truck_penalty
+      else
+        result.weight = math.max(result.weight, result.duration / truck_penalty)
+      end
+    end
+  end
+end
 
 function get_name_suffix_list(vector)
   for index,suffix in ipairs(profile.suffix_list) do
@@ -436,6 +478,8 @@ function way_function(way, result)
   }
 
   Handlers.run(handlers,way,result,data,profile)
+
+  truck_penalties(profile,way,result,data)
 end
 
 function turn_function (turn)
