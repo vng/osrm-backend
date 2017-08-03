@@ -39,9 +39,10 @@ local profile = {
   u_turn_penalty             = 30,
 
   -- bounds of truck in meters
-  truck_height = 4.5,
-  truck_width = 2.5,
-  truck_weight = 20000,
+  truck_length = 18.75,
+  truck_height = 5,
+  truck_width = 2.6,
+  truck_weight = 44000,
 
   -- Note: this biases right-side driving.
   -- Should be inverted for left-driving countries.
