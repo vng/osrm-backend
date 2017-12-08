@@ -43,6 +43,10 @@ void NodeBasedGraphFactory::BuildCompressedOutputGraph(const std::vector<NodeBas
     compressed_output_graph =
         util::NodeBasedDynamicGraphFromEdges(number_of_node_based_nodes, edge_list);
 
+    /// @todo uncompressed_graph = compressed_output_graph doesn't work ...
+    uncompressed_graph =
+        util::NodeBasedDynamicGraphFromEdges(number_of_node_based_nodes, edge_list);
+
     // check whether the graph is sane
     BOOST_ASSERT(
         [this]()

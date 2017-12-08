@@ -48,6 +48,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace osrm::extractor
 {
 
+class NodeBasedGraphFactory;
 class ScriptingEnvironment;
 struct ProfileProperties;
 
@@ -77,9 +78,7 @@ class Extractor
 
     EdgeID BuildEdgeExpandedGraph(
         // input data
-        const util::NodeBasedDynamicGraph &node_based_graph,
-        const std::vector<util::Coordinate> &coordinates,
-        const CompressedEdgeContainer &compressed_edge_container,
+        const NodeBasedGraphFactory &node_based_graph_factory,
         const RestrictionGraph &restriction_graph,
         const std::unordered_set<EdgeID> &segregated_edges,
         const StringTable &string_table,

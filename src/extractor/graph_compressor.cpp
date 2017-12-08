@@ -151,6 +151,13 @@ void GraphCompressor::Compress(ScriptingEnvironment &scripting_environment,
                 continue;
             }
 
+            /// @todo Remove this when 1->n matching for edge -> osm ids will be made.
+            if (fwd_edge_data1.osm_way_id != fwd_edge_data2.osm_way_id ||
+                rev_edge_data1.osm_way_id != rev_edge_data2.osm_way_id)
+            {
+                continue;
+            }
+
             if ((fwd_edge_data1.flags == fwd_edge_data2.flags) &&
                 (rev_edge_data1.flags == rev_edge_data2.flags) &&
                 (fwd_edge_data1.reversed == fwd_edge_data2.reversed) &&
@@ -306,6 +313,21 @@ void GraphCompressor::Compress(ScriptingEnvironment &scripting_environment,
                 graph.SetTarget(forward_e1, node_w);
                 graph.SetTarget(reverse_e1, node_u);
 
+                const OSMWayID forward_osm_way_id1 = graph.GetEdgeData(forward_e1).osm_way_id;
+                const OSMWayID forward_osm_way_id2 = graph.GetEdgeData(forward_e2).osm_way_id;
+
+                BOOST_ASSERT(forward_osm_way_id1 != SPECIAL_OSM_WAYID);
+                BOOST_ASSERT(forward_osm_way_id2 != SPECIAL_OSM_WAYID);
+
+                const OSMWayID reverse_osm_way_id1 = graph.GetEdgeData(reverse_e1).osm_way_id;
+                const OSMWayID reverse_osm_way_id2 = graph.GetEdgeData(reverse_e2).osm_way_id;
+
+                BOOST_ASSERT(reverse_osm_way_id1 != SPECIAL_OSM_WAYID);
+                BOOST_ASSERT(reverse_osm_way_id2 != SPECIAL_OSM_WAYID);
+
+                BOOST_ASSERT(forward_osm_way_id1 == forward_osm_way_id2);
+                BOOST_ASSERT(reverse_osm_way_id1 == reverse_osm_way_id2);
+
                 // remove e2's (if bidir, otherwise only one)
                 graph.DeleteEdge(node_v, forward_e2);
                 graph.DeleteEdge(node_v, reverse_e2);
@@ -337,6 +359,8 @@ void GraphCompressor::Compress(ScriptingEnvironment &scripting_environment,
                                                  forward_weight2,
                                                  forward_duration1,
                                                  forward_duration2,
+                                                 forward_osm_way_id1,
+                                                 forward_osm_way_id2,
                                                  forward_penalties.weight,
                                                  forward_penalties.duration);
                 geometry_compressor.CompressEdge(reverse_e1,
@@ -347,6 +371,8 @@ void GraphCompressor::Compress(ScriptingEnvironment &scripting_environment,
                                                  reverse_weight2,
                                                  reverse_duration1,
                                                  reverse_duration2,
+                                                 reverse_osm_way_id1,
+                                                 reverse_osm_way_id2,
                                                  backward_penalties.weight,
                                                  backward_penalties.duration);
             }
@@ -364,7 +390,7 @@ void GraphCompressor::Compress(ScriptingEnvironment &scripting_environment,
         {
             const EdgeData &data = graph.GetEdgeData(edge_id);
             const NodeID target = graph.GetTarget(edge_id);
-            geometry_compressor.AddUncompressedEdge(edge_id, target, data.weight, data.duration);
+            geometry_compressor.AddUncompressedEdge(edge_id, target, data.weight, data.duration, data.osm_way_id);
         }
     }
 }

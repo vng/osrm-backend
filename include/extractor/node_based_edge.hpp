@@ -97,7 +97,8 @@ struct NodeBasedEdge
 {
     NodeBasedEdge();
 
-    NodeBasedEdge(NodeID source,
+    NodeBasedEdge(OSMWayID osm_way_id,
+                  NodeID source,
                   NodeID target,
                   EdgeWeight weight,
                   EdgeDuration duration,
@@ -108,6 +109,7 @@ struct NodeBasedEdge
 
     bool operator<(const NodeBasedEdge &other) const;
 
+    OSMWayID osm_way_id;               // 64 8
     NodeID source;                     // 32 4
     NodeID target;                     // 32 4
     EdgeWeight weight;                 // 32 4
@@ -122,7 +124,8 @@ struct NodeBasedEdgeWithOSM : NodeBasedEdge
 {
     NodeBasedEdgeWithOSM();
 
-    NodeBasedEdgeWithOSM(OSMNodeID source,
+    NodeBasedEdgeWithOSM(OSMWayID osm_way_id,
+                         OSMNodeID source,
                          OSMNodeID target,
                          EdgeWeight weight,
                          EdgeDuration duration,
@@ -145,12 +148,13 @@ inline NodeBasedEdgeClassification::NodeBasedEdgeClassification()
 }
 
 inline NodeBasedEdge::NodeBasedEdge()
-    : source(SPECIAL_NODEID), target(SPECIAL_NODEID), weight{0}, duration{0}, distance{0},
+    : osm_way_id(SPECIAL_OSM_WAYID), source(SPECIAL_NODEID), target(SPECIAL_NODEID), weight{0}, duration{0}, distance{0},
       annotation_data(-1)
 {
 }
 
-inline NodeBasedEdge::NodeBasedEdge(NodeID source,
+inline NodeBasedEdge::NodeBasedEdge(OSMWayID osm_way_id,
+                                    NodeID source,
                                     NodeID target,
                                     EdgeWeight weight,
                                     EdgeDuration duration,
@@ -158,7 +162,7 @@ inline NodeBasedEdge::NodeBasedEdge(NodeID source,
                                     GeometryID geometry_id,
                                     AnnotationID annotation_data,
                                     NodeBasedEdgeClassification flags)
-    : source(source), target(target), weight(weight), duration(duration), distance(distance),
+    : osm_way_id(osm_way_id), source(source), target(target), weight(weight), duration(duration), distance(distance),
       geometry_id(geometry_id), annotation_data(annotation_data), flags(flags)
 {
 }
@@ -181,7 +185,8 @@ inline bool NodeBasedEdge::operator<(const NodeBasedEdge &other) const
     return source < other.source;
 }
 
-inline NodeBasedEdgeWithOSM::NodeBasedEdgeWithOSM(OSMNodeID source,
+inline NodeBasedEdgeWithOSM::NodeBasedEdgeWithOSM(OSMWayID osm_way_id,
+                                                  OSMNodeID source,
                                                   OSMNodeID target,
                                                   EdgeWeight weight,
                                                   EdgeDuration duration,
@@ -189,7 +194,8 @@ inline NodeBasedEdgeWithOSM::NodeBasedEdgeWithOSM(OSMNodeID source,
                                                   GeometryID geometry_id,
                                                   AnnotationID annotation_data,
                                                   NodeBasedEdgeClassification flags)
-    : NodeBasedEdge(SPECIAL_NODEID,
+    : NodeBasedEdge(osm_way_id,
+                    SPECIAL_NODEID,
                     SPECIAL_NODEID,
                     weight,
                     duration,
@@ -205,11 +211,6 @@ inline NodeBasedEdgeWithOSM::NodeBasedEdgeWithOSM()
     : osm_source_id(MIN_OSM_NODEID), osm_target_id(MIN_OSM_NODEID)
 {
 }
-
-static_assert(sizeof(extractor::NodeBasedEdge) == 32,
-              "Size of extractor::NodeBasedEdge type is "
-              "bigger than expected. This will influence "
-              "memory consumption.");
 
 } // namespace osrm::extractor
 

@@ -239,7 +239,6 @@ int Extractor::run(ScriptingEnvironment &scripting_environment)
     auto const &coordinates = node_based_graph_factory.GetCoordinates();
     files::writeNodes(
         config.GetPath(".osrm.nbg_nodes"), coordinates, node_based_graph_factory.GetOsmNodes());
-    node_based_graph_factory.ReleaseOsmNodes();
 
     auto const &node_based_graph = node_based_graph_factory.GetGraph();
 
@@ -268,9 +267,7 @@ int Extractor::run(ScriptingEnvironment &scripting_environment)
     const auto number_of_node_based_nodes = node_based_graph.GetNumberOfNodes();
 
     const auto number_of_edge_based_nodes =
-        BuildEdgeExpandedGraph(node_based_graph,
-                               coordinates,
-                               node_based_graph_factory.GetCompressedEdges(),
+        BuildEdgeExpandedGraph(node_based_graph_factory,
                                restriction_graph,
                                segregated_edges,
                                string_table,
@@ -295,6 +292,8 @@ int Extractor::run(ScriptingEnvironment &scripting_environment)
                          scripting_environment);
 
     TIMER_STOP(expansion);
+
+    node_based_graph_factory.ReleaseOsmNodes();
 
     // output the geometry of the node-based graph, needs to be done after the last usage, since it
     // destroys internal containers
@@ -717,9 +716,7 @@ void Extractor::FindComponents(unsigned number_of_edge_based_nodes,
 
 EdgeID Extractor::BuildEdgeExpandedGraph(
     // input data
-    const util::NodeBasedDynamicGraph &node_based_graph,
-    const std::vector<util::Coordinate> &coordinates,
-    const CompressedEdgeContainer &compressed_edge_container,
+    const NodeBasedGraphFactory &node_based_graph_factory,
     const RestrictionGraph &restriction_graph,
     const std::unordered_set<EdgeID> &segregated_edges,
     const StringTable &string_table,
@@ -736,10 +733,12 @@ EdgeID Extractor::BuildEdgeExpandedGraph(
     util::DeallocatingVector<EdgeBasedEdge> &edge_based_edge_list,
     std::uint32_t &connectivity_checksum)
 {
-    EdgeBasedGraphFactory edge_based_graph_factory(node_based_graph,
+    EdgeBasedGraphFactory edge_based_graph_factory(node_based_graph_factory.GetGraph(),
+                                                   node_based_graph_factory.GetUncompressedGraph(),
+                                                   node_based_graph_factory.GetOsmNodes(),
                                                    edge_based_nodes_container,
-                                                   compressed_edge_container,
-                                                   coordinates,
+                                                   node_based_graph_factory.GetCompressedEdges(),
+                                                   node_based_graph_factory.GetCoordinates(),
                                                    string_table,
                                                    segregated_edges,
                                                    turn_lane_map);
@@ -757,6 +756,7 @@ EdgeID Extractor::BuildEdgeExpandedGraph(
                                      config.GetPath(".osrm.cnbg_to_ebg").string(),
                                      config.GetPath(".osrm.restrictions").string(),
                                      config.GetPath(".osrm.maneuver_overrides").string(),
+                                     config.GetPath(".osrm.nodes_geom").string(),
                                      unconditional_node_restriction_map,
                                      conditional_node_restriction_map,
                                      via_way_restriction_map,

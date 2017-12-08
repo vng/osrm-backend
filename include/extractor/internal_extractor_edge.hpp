@@ -54,12 +54,13 @@ struct InternalExtractorEdge
 
     explicit InternalExtractorEdge() : weight_data(), duration_data() {}
 
-    explicit InternalExtractorEdge(OSMNodeID source,
+    explicit InternalExtractorEdge(OSMWayID osm_way_id,
+                                   OSMNodeID source,
                                    OSMNodeID target,
                                    WeightData weight_data,
                                    DurationData duration_data,
                                    util::Coordinate source_coordinate)
-        : result(source, target, {0}, {0}, {0}, {}, -1, {}), weight_data(weight_data),
+        : result(osm_way_id, source, target, {0}, {0}, {0}, {}, -1, {}), weight_data(weight_data),
           duration_data(duration_data), source_coordinate(source_coordinate)
     {
     }

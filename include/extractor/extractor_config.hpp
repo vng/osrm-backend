@@ -65,7 +65,8 @@ struct ExtractorConfig final : storage::IOConfig
                ".osrm.icd",
                ".osrm.cnbg",
                ".osrm.cnbg_to_ebg",
-               ".osrm.maneuver_overrides"})
+               ".osrm.maneuver_overrides",
+               ".osrm.nodes_geom"})
     {
     }
 
