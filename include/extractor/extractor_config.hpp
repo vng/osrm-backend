@@ -68,6 +68,7 @@ struct ExtractorConfig final : storage::IOConfig
                                       ".osrm.icd",
                                       ".osrm.cnbg",
                                       ".osrm.cnbg_to_ebg",
+                                      ".osrm.nodes_geom",
                                       ".osrm.maneuver_overrides"}),
                                  requested_num_threads(0),
                                  parse_conditionals(false),
@@ -94,7 +95,7 @@ struct ExtractorConfig final : storage::IOConfig
     bool parse_conditionals;
     bool use_locations_cache;
 };
-}
-}
+} // namespace extractor
+} // namespace osrm
 
 #endif // EXTRACTOR_CONFIG_HPP

@@ -51,7 +51,7 @@ template <> struct hash<std::pair<NodeID, NodeID>>
         return seed;
     }
 };
-}
+} // namespace std
 
 // Buffer size of turn_indexes_write_buffer to reduce number of write(v) syscals
 const constexpr int TURN_INDEX_WRITE_BUFFER_SIZE = 1000;
@@ -64,6 +64,8 @@ namespace extractor
 // Configuration to find representative candidate for turn angle calculations
 EdgeBasedGraphFactory::EdgeBasedGraphFactory(
     const util::NodeBasedDynamicGraph &node_based_graph,
+    const util::NodeBasedDynamicGraph &nbg_uncompressed,
+    const extractor::PackedOSMIDs &osm_node_ids,
     EdgeBasedNodeDataContainer &node_data_container,
     const CompressedEdgeContainer &compressed_edge_container,
     const std::unordered_set<NodeID> &barrier_nodes,
@@ -72,12 +74,12 @@ EdgeBasedGraphFactory::EdgeBasedGraphFactory(
     const NameTable &name_table,
     const std::unordered_set<EdgeID> &segregated_edges,
     const extractor::LaneDescriptionMap &lane_description_map)
-    : m_edge_based_node_container(node_data_container), m_connectivity_checksum(0),
+    : m_edge_based_node_container(node_data_container), m_osm_node_ids(osm_node_ids), m_connectivity_checksum(0),
       m_number_of_edge_based_nodes(0), m_coordinates(coordinates),
-      m_node_based_graph(std::move(node_based_graph)), m_barrier_nodes(barrier_nodes),
-      m_traffic_lights(traffic_lights), m_compressed_edge_container(compressed_edge_container),
-      name_table(name_table), segregated_edges(segregated_edges),
-      lane_description_map(lane_description_map)
+      m_node_based_graph(node_based_graph), m_nbg_uncompressed(nbg_uncompressed),
+      m_barrier_nodes(barrier_nodes), m_traffic_lights(traffic_lights),
+      m_compressed_edge_container(compressed_edge_container), name_table(name_table),
+      segregated_edges(segregated_edges), lane_description_map(lane_description_map)
 {
 }
 
@@ -241,6 +243,7 @@ void EdgeBasedGraphFactory::Run(
     const std::string &turn_penalties_index_filename,
     const std::string &cnbg_ebg_mapping_path,
     const std::string &conditional_penalties_filename,
+    const std::string &geometry_info_filename,
     const std::string &maneuver_overrides_filename,
     const RestrictionMap &node_restriction_map,
     const ConditionalRestrictionMap &conditional_node_restriction_map,
@@ -278,6 +281,9 @@ void EdgeBasedGraphFactory::Run(
 
     TIMER_STOP(generate_edges);
 
+    util::Log() << "Save extracted geometry info ...";
+    m_ebn_geometry_info.Save(geometry_info_filename);
+
     util::Log() << "Timing statistics for edge-expanded graph:";
     util::Log() << "Renumbering edges: " << TIMER_SEC(renumber) << "s";
     util::Log() << "Generating nodes: " << TIMER_SEC(generate_nodes) << "s";
@@ -289,14 +295,12 @@ void EdgeBasedGraphFactory::Run(
 /// Returns the number of edge-based nodes.
 unsigned EdgeBasedGraphFactory::LabelEdgeBasedNodes()
 {
-    // heuristic: node-based graph node is a simple intersection with four edges
-    // (edge-based nodes)
-    constexpr std::size_t ESTIMATED_EDGE_COUNT = 4;
-    m_edge_based_node_weights.reserve(ESTIMATED_EDGE_COUNT * m_node_based_graph.GetNumberOfNodes());
-    m_edge_based_node_durations.reserve(ESTIMATED_EDGE_COUNT *
-                                        m_node_based_graph.GetNumberOfNodes());
-    m_edge_based_node_distances.reserve(ESTIMATED_EDGE_COUNT *
-                                        m_node_based_graph.GetNumberOfNodes());
+    // heuristic: node-based graph node is a simple intersection with four edges (edge-based nodes)
+    size_t const reservedSize = 4 * m_node_based_graph.GetNumberOfNodes();
+    m_edge_based_node_weights.reserve(reservedSize);
+    m_edge_based_node_durations.reserve(reservedSize);
+    m_edge_based_node_distances.reserve(reservedSize);
+    m_ebn_geometry_info.reserve(reservedSize);
     nbe_to_ebn_mapping.resize(m_node_based_graph.GetEdgeCapacity(), SPECIAL_NODEID);
 
     // renumber edge based node of outgoing edges
@@ -316,9 +320,10 @@ unsigned EdgeBasedGraphFactory::LabelEdgeBasedNodes()
             m_edge_based_node_durations.push_back(edge_data.duration);
             m_edge_based_node_distances.push_back(edge_data.distance);
 
+            m_ebn_geometry_info.Add(GetGeometryInfo(current_node, current_edge, edge_data));
+
             BOOST_ASSERT(numbered_edges_count < m_node_based_graph.GetNumberOfEdges());
-            nbe_to_ebn_mapping[current_edge] = numbered_edges_count;
-            ++numbered_edges_count;
+            nbe_to_ebn_mapping[current_edge] = numbered_edges_count++;
         }
     }
 
@@ -414,6 +419,9 @@ EdgeBasedGraphFactory::GenerateEdgeExpandedNodes(const WayRestrictionMap &way_re
                 m_edge_based_node_durations[nbe_to_ebn_mapping[eid]]);
             m_edge_based_node_distances.push_back(
                 m_edge_based_node_distances[nbe_to_ebn_mapping[eid]]);
+
+            // Same as GetGeometryInfo(node_u, eid, edge_data), but should be faster ..
+            m_ebn_geometry_info.Add(m_ebn_geometry_info[nbe_to_ebn_mapping[eid]]);
 
             edge_based_node_id++;
             progress.PrintStatus(progress_counter++);
@@ -1195,6 +1203,58 @@ EdgeBasedGraphFactory::IndexConditionals(std::vector<Conditional> &&conditionals
     }
 
     return indexed_restrictions;
+}
+
+EdgeBasedGraphFactory::GeometryInfo EdgeBasedGraphFactory::GetGeometryInfo(
+    NodeID start_node, EdgeID edge, const EdgeData &edge_data) const
+{
+    BOOST_ASSERT(!edge_data.reversed);
+
+    NodeID target_node = m_node_based_graph.GetTarget(edge);
+
+    GeometryInfo info;
+    info.osm_way_id = edge_data.osm_way_id;
+
+    if (m_compressed_edge_container.HasEntryForID(edge))
+    {
+        auto const &via_nodes = m_compressed_edge_container.GetBucketReference(edge);
+
+        std::vector<NodeID> nodes;
+        nodes.push_back(start_node);
+
+        for (auto const &iter : via_nodes)
+            if (nodes.back() != iter.node_id)
+                nodes.push_back(iter.node_id);
+
+        if (nodes.back() != target_node)
+            nodes.push_back(target_node);
+
+        NodeID last_node = SPECIAL_NODEID;
+        for (size_t i = 1; i < nodes.size(); ++i)
+        {
+            NodeID node1 = nodes[i - 1];
+            NodeID node2 = nodes[i];
+
+            const EdgeID tmp_edge = m_nbg_uncompressed.FindEdge(node1, node2);
+            if (tmp_edge == SPECIAL_EDGEID)
+            {
+                util::Log(logWARNING) << "Can't find edge " << node1 << " -> " << node2;
+                throw util::exception("Invalid data.");
+            }
+
+            info.AddNode(m_osm_node_ids[node1]);
+            last_node = node2;
+        }
+
+        info.AddNode(m_osm_node_ids[last_node]);
+    }
+    else
+    {
+        info.AddNode(m_osm_node_ids[start_node]);
+        info.AddNode(m_osm_node_ids[target_node]);
+    }
+
+    return info;
 }
 
 } // namespace extractor
