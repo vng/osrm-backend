@@ -42,7 +42,7 @@ class Percent
             PrintPercent(current_value / static_cast<double>(m_max_value) * 100.);
         }
         if (current_value + 1 == m_max_value)
-            log << " 100%";
+            log << " 100%" << std::endl;
     }
 
     void PrintIncrement()
@@ -87,7 +87,7 @@ class Percent
         }
     }
 };
-}
-}
+} // namespace util
+} // namespace osrm
 
 #endif // PERCENT_HPP

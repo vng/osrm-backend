@@ -51,7 +51,7 @@ struct ByEdgeOrByMeterValue
     using value_type = float;
     value_type value;
 };
-}
+} // namespace detail
 
 struct InternalExtractorEdge
 {
@@ -60,12 +60,13 @@ struct InternalExtractorEdge
 
     explicit InternalExtractorEdge() : weight_data(), duration_data() {}
 
-    explicit InternalExtractorEdge(OSMNodeID source,
+    explicit InternalExtractorEdge(OSMWayID osm_way_id,
+                                   OSMNodeID source,
                                    OSMNodeID target,
                                    WeightData weight_data,
                                    DurationData duration_data,
                                    util::Coordinate source_coordinate)
-        : result(source, target, 0, 0, {}, -1, {}), weight_data(std::move(weight_data)),
+        : result(osm_way_id, source, target, 0, 0, {}, -1, {}), weight_data(std::move(weight_data)),
           duration_data(std::move(duration_data)), source_coordinate(std::move(source_coordinate))
     {
     }
@@ -91,13 +92,21 @@ struct InternalExtractorEdge
     // necessary static util functions for stxxl's sorting
     static InternalExtractorEdge min_osm_value()
     {
-        return InternalExtractorEdge(
-            MIN_OSM_NODEID, MIN_OSM_NODEID, WeightData(), DurationData(), util::Coordinate());
+        return InternalExtractorEdge(SPECIAL_OSM_WAYID,
+                                     MIN_OSM_NODEID,
+                                     MIN_OSM_NODEID,
+                                     WeightData(),
+                                     DurationData(),
+                                     util::Coordinate());
     }
     static InternalExtractorEdge max_osm_value()
     {
-        return InternalExtractorEdge(
-            MAX_OSM_NODEID, MAX_OSM_NODEID, WeightData(), DurationData(), util::Coordinate());
+        return InternalExtractorEdge(SPECIAL_OSM_WAYID,
+                                     MAX_OSM_NODEID,
+                                     MAX_OSM_NODEID,
+                                     WeightData(),
+                                     DurationData(),
+                                     util::Coordinate());
     }
 
     static InternalExtractorEdge min_internal_value()
@@ -115,7 +124,7 @@ struct InternalExtractorEdge
         return v;
     }
 };
-}
-}
+} // namespace extractor
+} // namespace osrm
 
 #endif // INTERNAL_EXTRACTOR_EDGE_HPP

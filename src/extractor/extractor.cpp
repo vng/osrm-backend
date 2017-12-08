@@ -164,7 +164,7 @@ void SetExcludableClasses(const ExtractorCallbacks::ClassesMap &classes_map,
         }
     }
 }
-}
+} // namespace
 
 /**
  * TODO: Refactor this function into smaller functions for better readability.
@@ -233,7 +233,6 @@ int Extractor::run(ScriptingEnvironment &scripting_environment)
     auto const &coordinates = node_based_graph_factory.GetCoordinates();
     files::writeNodes(
         config.GetPath(".osrm.nbg_nodes"), coordinates, node_based_graph_factory.GetOsmNodes());
-    node_based_graph_factory.ReleaseOsmNodes();
 
     auto const &node_based_graph = node_based_graph_factory.GetGraph();
 
@@ -261,8 +260,6 @@ int Extractor::run(ScriptingEnvironment &scripting_environment)
 
     node_based_graph_factory.GetCompressedEdges().PrintStatistics();
 
-    const auto &barrier_nodes = node_based_graph_factory.GetBarriers();
-    const auto &traffic_signals = node_based_graph_factory.GetTrafficSignals();
     // stealing the annotation data from the node-based graph
     edge_based_nodes_container =
         EdgeBasedNodeDataContainer({}, std::move(node_based_graph_factory.GetAnnotationData()));
@@ -273,11 +270,8 @@ int Extractor::run(ScriptingEnvironment &scripting_environment)
     const auto number_of_node_based_nodes = node_based_graph.GetNumberOfNodes();
 
     const auto number_of_edge_based_nodes =
-        BuildEdgeExpandedGraph(node_based_graph,
-                               coordinates,
-                               node_based_graph_factory.GetCompressedEdges(),
-                               barrier_nodes,
-                               traffic_signals,
+        BuildEdgeExpandedGraph(node_based_graph_factory,
+                               names,
                                turn_restrictions,
                                conditional_turn_restrictions,
                                segregated_edges,
@@ -291,6 +285,8 @@ int Extractor::run(ScriptingEnvironment &scripting_environment)
                                config.GetPath(".osrm.icd").string());
 
     TIMER_STOP(expansion);
+
+    node_based_graph_factory.ReleaseOsmNodes();
 
     // output the geometry of the node-based graph, needs to be done after the last usage, since it
     // destroys internal containers
@@ -662,11 +658,8 @@ void Extractor::FindComponents(unsigned number_of_edge_based_nodes,
 
 EdgeID Extractor::BuildEdgeExpandedGraph(
     // input data
-    const util::NodeBasedDynamicGraph &node_based_graph,
-    const std::vector<util::Coordinate> &coordinates,
-    const CompressedEdgeContainer &compressed_edge_container,
-    const std::unordered_set<NodeID> &barrier_nodes,
-    const std::unordered_set<NodeID> &traffic_signals,
+    const NodeBasedGraphFactory &node_based_graph_factory,
+    const util::NameTable &name_table,
     const std::vector<TurnRestriction> &turn_restrictions,
     const std::vector<ConditionalTurnRestriction> &conditional_turn_restrictions,
     const std::unordered_set<EdgeID> &segregated_edges,
@@ -682,14 +675,14 @@ EdgeID Extractor::BuildEdgeExpandedGraph(
     util::DeallocatingVector<EdgeBasedEdge> &edge_based_edge_list,
     const std::string &intersection_class_output_file)
 {
-    util::NameTable name_table(config.GetPath(".osrm.names").string());
-
-    EdgeBasedGraphFactory edge_based_graph_factory(node_based_graph,
+    EdgeBasedGraphFactory edge_based_graph_factory(node_based_graph_factory.GetGraph(),
+                                                   node_based_graph_factory.GetUncompressedGraph(),
+                                                   node_based_graph_factory.GetOsmNodes(),
                                                    edge_based_nodes_container,
-                                                   compressed_edge_container,
-                                                   barrier_nodes,
-                                                   traffic_signals,
-                                                   coordinates,
+                                                   node_based_graph_factory.GetCompressedEdges(),
+                                                   node_based_graph_factory.GetBarriers(),
+                                                   node_based_graph_factory.GetTrafficSignals(),
+                                                   node_based_graph_factory.GetCoordinates(),
                                                    name_table,
                                                    segregated_edges,
                                                    turn_lane_map);
@@ -719,6 +712,7 @@ EdgeID Extractor::BuildEdgeExpandedGraph(
                                      config.GetPath(".osrm.turn_penalties_index").string(),
                                      config.GetPath(".osrm.cnbg_to_ebg").string(),
                                      config.GetPath(".osrm.restrictions").string(),
+                                     config.GetPath(".osrm.nodes_geom").string(),
                                      via_node_restriction_map,
                                      conditional_node_restriction_map,
                                      via_way_restriction_map);

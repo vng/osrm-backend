@@ -57,6 +57,10 @@ void NodeBasedGraphFactory::LoadDataFromFile(const boost::filesystem::path &inpu
     compressed_output_graph =
         util::NodeBasedDynamicGraphFromEdges(number_of_node_based_nodes, edge_list);
 
+    /// @todo uncompressed_graph = compressed_output_graph doesn't work ...
+    uncompressed_graph =
+        util::NodeBasedDynamicGraphFromEdges(number_of_node_based_nodes, edge_list);
+
     // check whether the graph is sane
     BOOST_ASSERT([this]() {
         for (const auto nbg_node_u : util::irange(0u, compressed_output_graph.GetNumberOfNodes()))

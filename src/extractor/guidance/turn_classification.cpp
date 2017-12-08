@@ -83,6 +83,8 @@ classifyIntersection(Intersection intersection, const osrm::util::Coordinate &lo
             ++number;
         }
     }
+
+    BOOST_ASSERT(number == bearing_class.getAvailableBearings().size());
     return std::make_pair(entry_class, bearing_class);
 }
 

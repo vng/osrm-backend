@@ -112,6 +112,8 @@ void CompressedEdgeContainer::CompressEdge(
     const EdgeWeight weight2,
     const EdgeDuration duration1,
     const EdgeDuration duration2,
+    const OSMWayID osm_way_id_1,
+    const OSMWayID osm_way_id_2,
     const boost::optional<EdgeWeight> node_weight_penalty,
     const boost::optional<EdgeDuration> node_duration_penalty)
 {
@@ -122,6 +124,8 @@ void CompressedEdgeContainer::CompressEdge(
     BOOST_ASSERT(SPECIAL_NODEID != target_node_id);
     BOOST_ASSERT(INVALID_SEGMENT_WEIGHT != weight1);
     BOOST_ASSERT(INVALID_SEGMENT_WEIGHT != weight2);
+    BOOST_ASSERT(SPECIAL_OSM_WAYID != osm_way_id_1);
+    BOOST_ASSERT(SPECIAL_OSM_WAYID != osm_way_id_2);
 
     // append list of removed edge_id plus via node to surviving edge id:
     // <surv_1, .. , surv_n, via_node_id, rem_1, .. rem_n
@@ -160,8 +164,8 @@ void CompressedEdgeContainer::CompressEdge(
     // weight1 is the distance to the (currently) last coordinate in the bucket
     if (was_empty)
     {
-        edge_bucket_list1.emplace_back(
-            OnewayCompressedEdge{via_node_id, ClipWeight(weight1), ClipDuration(duration1)});
+        edge_bucket_list1.emplace_back(OnewayCompressedEdge{
+            via_node_id, ClipWeight(weight1), ClipDuration(duration1), osm_way_id_1});
     }
 
     BOOST_ASSERT(0 < edge_bucket_list1.size());
@@ -171,8 +175,10 @@ void CompressedEdgeContainer::CompressEdge(
     // segment that references SPECIAL_NODEID
     if (node_weight_penalty && node_duration_penalty)
     {
-        edge_bucket_list1.emplace_back(OnewayCompressedEdge{
-            via_node_id, ClipWeight(*node_weight_penalty), ClipDuration(*node_duration_penalty)});
+        edge_bucket_list1.emplace_back(OnewayCompressedEdge{via_node_id,
+                                                            ClipWeight(*node_weight_penalty),
+                                                            ClipDuration(*node_duration_penalty),
+                                                            osm_way_id_1});
     }
 
     if (HasEntryForID(edge_id_2))
@@ -200,20 +206,22 @@ void CompressedEdgeContainer::CompressEdge(
     else
     {
         // we are certain that the second edge is atomic.
-        edge_bucket_list1.emplace_back(
-            OnewayCompressedEdge{target_node_id, ClipWeight(weight2), ClipDuration(duration2)});
+        edge_bucket_list1.emplace_back(OnewayCompressedEdge{
+            target_node_id, ClipWeight(weight2), ClipDuration(duration2), osm_way_id_2});
     }
 }
 
 void CompressedEdgeContainer::AddUncompressedEdge(const EdgeID edge_id,
                                                   const NodeID target_node_id,
                                                   const SegmentWeight weight,
-                                                  const SegmentDuration duration)
+                                                  const SegmentDuration duration,
+                                                  const OSMWayID osm_way_id)
 {
     // remove super-trivial geometries
     BOOST_ASSERT(SPECIAL_EDGEID != edge_id);
     BOOST_ASSERT(SPECIAL_NODEID != target_node_id);
     BOOST_ASSERT(INVALID_EDGE_WEIGHT != weight);
+    BOOST_ASSERT(SPECIAL_OSM_WAYID != osm_way_id);
 
     // Add via node id. List is created if it does not exist
     if (!HasEntryForID(edge_id))
@@ -244,8 +252,8 @@ void CompressedEdgeContainer::AddUncompressedEdge(const EdgeID edge_id,
     // Don't re-add this if it's already in there.
     if (edge_bucket_list.empty())
     {
-        edge_bucket_list.emplace_back(
-            OnewayCompressedEdge{target_node_id, ClipWeight(weight), ClipDuration(duration)});
+        edge_bucket_list.emplace_back(OnewayCompressedEdge{
+            target_node_id, ClipWeight(weight), ClipDuration(duration), osm_way_id});
     }
 }
 
@@ -396,5 +404,5 @@ std::unique_ptr<SegmentDataContainer> CompressedEdgeContainer::ToSegmentData()
 
     return std::move(segment_data);
 }
-}
-}
+} // namespace extractor
+} // namespace osrm

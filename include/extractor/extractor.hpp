@@ -45,6 +45,7 @@ namespace osrm
 namespace extractor
 {
 
+class NodeBasedGraphFactory;
 class ScriptingEnvironment;
 struct ProfileProperties;
 
@@ -64,11 +65,8 @@ class Extractor
 
     EdgeID BuildEdgeExpandedGraph(
         // input data
-        const util::NodeBasedDynamicGraph &node_based_graph,
-        const std::vector<util::Coordinate> &coordinates,
-        const CompressedEdgeContainer &compressed_edge_container,
-        const std::unordered_set<NodeID> &barrier_nodes,
-        const std::unordered_set<NodeID> &traffic_lights,
+        const NodeBasedGraphFactory &node_based_graph_factory,
+        const util::NameTable &name_table,
         const std::vector<TurnRestriction> &turn_restrictions,
         const std::vector<ConditionalTurnRestriction> &conditional_turn_restrictions,
         const std::unordered_set<EdgeID> &segregated_edges,
@@ -102,7 +100,7 @@ class Extractor
         const std::string &path,
         std::vector<ConditionalTurnRestriction> &conditional_turn_restrictions);
 };
-}
-}
+} // namespace extractor
+} // namespace osrm
 
 #endif /* EXTRACTOR_HPP */

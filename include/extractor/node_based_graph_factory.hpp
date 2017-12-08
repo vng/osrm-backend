@@ -42,6 +42,7 @@ class NodeBasedGraphFactory
                           std::vector<ConditionalTurnRestriction> &conditional_turn_restrictions);
 
     auto const &GetGraph() const { return compressed_output_graph; }
+    auto const &GetUncompressedGraph() const { return uncompressed_graph; }
     auto const &GetBarriers() const { return barriers; }
     auto const &GetTrafficSignals() const { return traffic_signals; }
     auto const &GetCompressedEdges() const { return compressed_edge_container; }
@@ -81,6 +82,7 @@ class NodeBasedGraphFactory
 
     // After produce, this will contain a compressed version of the node-based graph
     util::NodeBasedDynamicGraph compressed_output_graph;
+    util::NodeBasedDynamicGraph uncompressed_graph;
     // To store the meta-data for the graph that is purely annotative / not used for the navigation
     // itself. Since the edges of a node-based graph form the nodes of the edge based graphs, we
     // transform this data into the EdgeBasedNodeDataContainer as output storage.

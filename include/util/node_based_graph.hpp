@@ -21,22 +21,24 @@ namespace util
 struct NodeBasedEdgeData
 {
     NodeBasedEdgeData()
-        : weight(INVALID_EDGE_WEIGHT), duration(INVALID_EDGE_WEIGHT), geometry_id({0, false}),
-          reversed(false), annotation_data(-1)
+        : osm_way_id(SPECIAL_OSM_WAYID), weight(INVALID_EDGE_WEIGHT), duration(INVALID_EDGE_WEIGHT),
+          geometry_id({0, false}), reversed(false), annotation_data(-1)
     {
     }
 
-    NodeBasedEdgeData(EdgeWeight weight,
+    NodeBasedEdgeData(OSMWayID osm_way_id,
+                      EdgeWeight weight,
                       EdgeWeight duration,
                       GeometryID geometry_id,
                       bool reversed,
                       extractor::NodeBasedEdgeClassification flags,
                       AnnotationID annotation_data)
-        : weight(weight), duration(duration), geometry_id(geometry_id), reversed(reversed),
-          flags(flags), annotation_data(annotation_data)
+        : osm_way_id(osm_way_id), weight(weight), duration(duration), geometry_id(geometry_id),
+          reversed(reversed), flags(flags), annotation_data(annotation_data)
     {
     }
 
+    OSMWayID osm_way_id;
     EdgeWeight weight;
     EdgeWeight duration;
     GeometryID geometry_id;
@@ -79,6 +81,7 @@ NodeBasedDynamicGraphFromEdges(NodeID number_of_nodes,
         input_edge_list,
         [](NodeBasedDynamicGraph::InputEdge &output_edge,
            const extractor::NodeBasedEdge &input_edge) {
+            output_edge.data.osm_way_id = input_edge.osm_way_id;
             output_edge.data.weight = input_edge.weight;
             output_edge.data.duration = input_edge.duration;
             output_edge.data.flags = input_edge.flags;
@@ -92,7 +95,7 @@ NodeBasedDynamicGraphFromEdges(NodeID number_of_nodes,
 
     return NodeBasedDynamicGraph(number_of_nodes, edges_list);
 }
-}
-}
+} // namespace util
+} // namespace osrm
 
 #endif // NODE_BASED_GRAPH_HPP

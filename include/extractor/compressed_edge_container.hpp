@@ -26,6 +26,7 @@ class CompressedEdgeContainer
         NodeID node_id;           // refers to an internal node-based-node
         SegmentWeight weight;     // the weight of the edge leading to this node
         SegmentDuration duration; // the duration of the edge leading to this node
+        OSMWayID osm_way_id;      // original OSM id of way
     };
 
     using OnewayEdgeBucket = std::vector<OnewayCompressedEdge>;
@@ -39,6 +40,8 @@ class CompressedEdgeContainer
                       const EdgeWeight weight2,
                       const EdgeDuration duration1,
                       const EdgeDuration duration2,
+                      const OSMWayID osm_way_id1,
+                      const OSMWayID osm_way_id2,
                       // node-penalties can be added before/or after the traversal of an edge which
                       // depends on whether we traverse the link forwards or backwards.
                       const boost::optional<EdgeWeight> node_weight_penalty = boost::none,
@@ -47,7 +50,8 @@ class CompressedEdgeContainer
     void AddUncompressedEdge(const EdgeID edge_id,
                              const NodeID target_node,
                              const SegmentWeight weight,
-                             const SegmentWeight duration);
+                             const SegmentWeight duration,
+                             const OSMWayID osm_way_id);
 
     void InitializeBothwayVector();
     unsigned ZipEdges(const unsigned f_edge_pos, const unsigned r_edge_pos);
@@ -84,7 +88,7 @@ class CompressedEdgeContainer
     std::unordered_map<EdgeID, unsigned> m_reverse_edge_id_to_zipped_index_map;
     std::unique_ptr<SegmentDataContainer> segment_data;
 };
-}
-}
+} // namespace extractor
+} // namespace osrm
 
 #endif // GEOMETRY_COMPRESSOR_HPP_

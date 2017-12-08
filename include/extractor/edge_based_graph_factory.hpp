@@ -14,6 +14,7 @@
 #include "extractor/nbg_to_ebg.hpp"
 #include "extractor/node_data_container.hpp"
 #include "extractor/original_edge_data.hpp"
+#include "extractor/packed_osm_ids.hpp"
 #include "extractor/query_node.hpp"
 #include "extractor/restriction_index.hpp"
 #include "extractor/way_restriction_map.hpp"
@@ -58,7 +59,7 @@ struct TurnIndexBlock
 #pragma pack(pop)
 static_assert(std::is_trivial<TurnIndexBlock>::value, "TurnIndexBlock is not trivial");
 static_assert(sizeof(TurnIndexBlock) == 12, "TurnIndexBlock is not packed correctly");
-} // ns lookup
+} // namespace lookup
 
 struct NodeBasedGraphToEdgeBasedGraphMappingWriter; // fwd. decl
 
@@ -68,7 +69,98 @@ class EdgeBasedGraphFactory
     EdgeBasedGraphFactory(const EdgeBasedGraphFactory &) = delete;
     EdgeBasedGraphFactory &operator=(const EdgeBasedGraphFactory &) = delete;
 
+    struct GeometryInfo
+    {
+        using NodesList = std::vector<OSMNodeID>;
+
+        GeometryInfo() : osm_way_id(SPECIAL_OSM_WAYID) {}
+
+        void AddNode(OSMNodeID osm_id) { nodes.emplace_back(osm_id); }
+
+        template <typename TReader> void LoadT(TReader &reader)
+        {
+            std::uint32_t num = 0;
+            reader.Read((char *)&osm_way_id, sizeof(OSMWayID));
+            reader.Read((char *)&num, sizeof(num));
+            nodes.resize(num);
+            reader.Read(nodes.data(), sizeof(OSMNodeID) * num);
+        }
+
+        void Load(std::ifstream &stream)
+        {
+            std::uint32_t num = 0;
+            stream.read((char *)&osm_way_id, sizeof(OSMWayID));
+            stream.read((char *)&num, sizeof(num));
+            nodes.resize(num);
+            stream.read((char *)nodes.data(), sizeof(OSMNodeID) * num);
+        }
+
+        void Write(std::ofstream &stream)
+        {
+            const std::uint32_t num = nodes.size();
+            stream.write((char *)&osm_way_id, sizeof(OSMWayID));
+            stream.write((char *)&num, sizeof(num));
+            for (std::uint32_t i = 0; i < num; ++i)
+                stream.write((char *)&(nodes[i]), sizeof(OSMNodeID));
+        }
+
+        OSMWayID osm_way_id;
+        NodesList nodes;
+    };
+
+    class GeometryInfoContainer
+    {
+      public:
+        using GeometryList = std::vector<GeometryInfo>;
+
+        GeometryInfo const &operator[](size_t idx) const
+        {
+            BOOST_ASSERT(idx < m_data.size());
+            return m_data[idx];
+        }
+
+        void reserve(size_t new_size) { m_data.reserve(new_size); }
+        size_t size() const { return m_data.size(); }
+
+        template <class T>
+        void Add(T &&info) { m_data.push_back(std::forward<T>(info)); }
+
+        void Load(std::string const &fileName)
+        {
+            std::ifstream in_file(fileName);
+            if (!in_file.is_open())
+                throw util::exception(std::string("Can't open input file ") + fileName);
+
+            uint32_t num = 0;
+            in_file.read((char *)&num, sizeof(num));
+            m_data.resize(num);
+            for (uint32_t i = 0; i < num; ++i)
+                m_data[i].Load(in_file);
+
+            in_file.close();
+        }
+
+        void Save(std::string const &fileName)
+        {
+            std::ofstream out_file(fileName);
+            if (!out_file.is_open())
+                throw util::exception(std::string("Can't open output file ") + fileName);
+
+            uint32_t const num = m_data.size();
+            out_file.write((char *)&num, sizeof(num));
+            for (uint32_t i = 0; i < num; ++i)
+                m_data[i].Write(out_file);
+
+            out_file.close();
+        }
+
+      private:
+        GeometryList m_data;
+    };
+
     explicit EdgeBasedGraphFactory(const util::NodeBasedDynamicGraph &node_based_graph,
+                                   const util::NodeBasedDynamicGraph &nbg_uncompressed,
+                                   const extractor::PackedOSMIDs &osm_node_ids,
                                    EdgeBasedNodeDataContainer &node_data_container,
                                    const CompressedEdgeContainer &compressed_edge_container,
                                    const std::unordered_set<NodeID> &barrier_nodes,
@@ -86,6 +178,7 @@ class EdgeBasedGraphFactory
              const std::string &turn_penalties_index_filename,
              const std::string &cnbg_ebg_mapping_path,
              const std::string &conditional_penalties_filename,
+             const std::string &geometry_info_filename,
              const RestrictionMap &node_restriction_map,
              const ConditionalRestrictionMap &conditional_restriction_map,
              const WayRestrictionMap &way_restriction_map);
@@ -141,7 +234,9 @@ class EdgeBasedGraphFactory
     //! list of edge based nodes (compressed segments)
     std::vector<EdgeBasedNodeSegment> m_edge_based_node_segments;
     EdgeBasedNodeDataContainer &m_edge_based_node_container;
+    const extractor::PackedOSMIDs &m_osm_node_ids;
     util::DeallocatingVector<EdgeBasedEdge> m_edge_based_edge_list;
+    GeometryInfoContainer m_ebn_geometry_info;
 
     // The number of edge-based nodes is mostly made up out of the edges in the node-based graph.
     // Any edge in the node-based graph represents a node in the edge-based graph. In addition, we
@@ -152,6 +247,10 @@ class EdgeBasedGraphFactory
 
     const std::vector<util::Coordinate> &m_coordinates;
     const util::NodeBasedDynamicGraph &m_node_based_graph;
+
+    /// @todo This graph is needed for validation checks only.
+    /// Can be removed in production with the NodeBasedGraphFactory::GetUncompressedGraph().
+    const util::NodeBasedDynamicGraph &m_nbg_uncompressed;
 
     const std::unordered_set<NodeID> &m_barrier_nodes;
     const std::unordered_set<NodeID> &m_traffic_lights;
@@ -187,6 +286,8 @@ class EdgeBasedGraphFactory
                                    const WayRestrictionMap &way_restriction_map);
 
     NBGToEBG InsertEdgeBasedNode(const NodeID u, const NodeID v);
+
+    GeometryInfo GetGeometryInfo(NodeID start_node, EdgeID edge, const EdgeData &edge_data) const;
 
     std::size_t restricted_turns_counter;
     std::size_t skipped_uturns_counter;
