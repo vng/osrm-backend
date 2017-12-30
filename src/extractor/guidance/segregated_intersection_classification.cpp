@@ -12,6 +12,73 @@ namespace extractor
 namespace guidance
 {
 
+void DumpBestNodes(std::vector<util::Coordinate> const & coordinates,
+                   std::vector<std::pair<NodeID, size_t>> & nodes,
+                   size_t count)
+{
+  if (nodes.empty())
+    return;
+
+  std::sort(nodes.begin(), nodes.end(), [](auto const & r1, auto const & r2)
+  {
+    return r1.second > r2.second;
+  });
+
+  struct PointT
+  {
+    double lon, lat;
+    explicit PointT(util::Coordinate const & c)
+      : lon(util::toFloating(c.lon)), lat(util::toFloating(c.lat))
+    {
+    }
+  };
+
+  struct ComparePoints
+  {
+    double epsLon, epsLat;
+
+    ComparePoints(double epsMetres, double currentLat)
+    {
+      BOOST_ASSERT(fabs(currentLat) < 85.0);
+      double const metresInLon = 40075000.0/360.0;
+      epsLon = epsMetres / metresInLon;
+      epsLat = epsMetres / (metresInLon * cos(currentLat));
+    }
+
+    bool operator() (PointT const & p1, PointT const & p2) const
+    {
+      if (p1.lon + epsLon < p2.lon)
+        return true;
+      if (p1.lon > p2.lon + epsLon)
+        return false;
+
+      // here p1.lon equals to p2.lon
+
+      // true, if real less, false instead
+      return (p1.lat + epsLat < p2.lat);
+    }
+  };
+
+  double const lat(util::toFloating(coordinates[nodes.front().first].lat));
+  std::set<PointT, ComparePoints> pointsSet(ComparePoints(50.0, lat));
+
+  for (auto const & r : nodes)
+  {
+    if (count == 0)
+      break;
+
+    if (pointsSet.insert(PointT(coordinates[r.first])).second)
+      --count;
+  }
+
+  std::ofstream of("points.txt");
+  for (auto const & r : pointsSet)
+  {
+    // lon,lat
+    of << r.lon << "," << r.lat << std::endl;
+  }
+}
+
 struct EdgeInfo
 {
     NodeID node;
@@ -128,7 +195,6 @@ bool IsSegregated(std::vector<EdgeInfo> v1,
 std::unordered_set<EdgeID> findSegregatedNodes(const NodeBasedGraphFactory &factory,
                                                const util::NameTable &names)
 {
-
     auto const &graph = factory.GetGraph();
     auto const &annotation = factory.GetAnnotationData();
 
@@ -216,6 +282,7 @@ std::unordered_set<EdgeID> findSegregatedNodes(const NodeBasedGraphFactory &fact
     };
 
     std::unordered_set<EdgeID> segregated_edges;
+    std::vector<std::pair<NodeID, size_t>> dump_nodes;
 
     for (NodeID sourceID = 0; sourceID < graph.GetNumberOfNodes(); ++sourceID)
     {
@@ -232,12 +299,32 @@ std::unordered_set<EdgeID> findSegregatedNodes(const NodeBasedGraphFactory &fact
 
             double const length = get_edge_length(sourceID, edgeID, targetID);
             if (isSegregatedFn(edgeData, sourceEdges, sourceID, targetEdges, targetID, length))
+            {
                 segregated_edges.insert(edgeID);
+                dump_nodes.push_back(std::make_pair(sourceID, sourceEdges.size() + targetEdges.size()));
+            }
         }
     }
 
+    DumpBestNodes(factory.GetCoordinates(), dump_nodes, 2000);
+
     return segregated_edges;
 }
+
+void FindTopInterestngCrossings(const NodeBasedGraphFactory &factory, size_t count)
+{
+  auto const & graph = factory.GetGraph();
+
+  std::vector<std::pair<NodeID, size_t>> results;
+  for (NodeID sourceID = 0; sourceID < graph.GetNumberOfNodes(); ++sourceID)
+  {
+    auto const edges = graph.GetAdjacentEdgeRange(sourceID);
+    results.push_back(std::make_pair(sourceID, edges.size()));
+  }
+
+  DumpBestNodes(factory.GetCoordinates(), results, count);
+}
+
 }
 }
 }

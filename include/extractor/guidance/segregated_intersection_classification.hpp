@@ -22,6 +22,9 @@ namespace guidance
 // - square/circle intersections
 std::unordered_set<EdgeID> findSegregatedNodes(const NodeBasedGraphFactory &factory,
                                                const util::NameTable &names);
+
+void FindTopInterestngCrossings(const NodeBasedGraphFactory &factory, size_t count);
+
 }
 }
 }
