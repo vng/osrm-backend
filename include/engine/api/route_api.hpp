@@ -295,7 +295,7 @@ class RouteAPI : public BaseAPI
                     nodes.values.reserve(leg_geometry.osm_node_ids.size());
                     std::for_each(leg_geometry.osm_node_ids.begin(),
                                   leg_geometry.osm_node_ids.end(),
-                                  [this, &nodes](const OSMNodeID &node_id) {
+                                  [&nodes](const OSMNodeID &node_id) {
                                       nodes.values.push_back(static_cast<std::uint64_t>(node_id));
                                   });
                     annotation.values["nodes"] = std::move(nodes);
