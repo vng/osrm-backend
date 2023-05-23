@@ -152,7 +152,7 @@ typename Intersection::const_iterator findBestMatchForReverse(const TurnLaneType
     return std::min_element(
         intersection.begin() + std::distance(intersection.begin(), neighbor_itr),
         intersection.end(),
-        [tag](const ConnectedRoad &lhs, const ConnectedRoad &rhs) {
+        [](const ConnectedRoad &lhs, const ConnectedRoad &rhs) {
             // prefer valid matches
             if (isValidMatch(tag, lhs.instruction) != isValidMatch(tag, rhs.instruction))
                 return isValidMatch(tag, lhs.instruction);

@@ -44,7 +44,7 @@ DinicMaxFlow::MinCut DinicMaxFlow::operator()(const BisectionGraphView &view,
     // overhead in initialisation/search cost.
 
     std::vector<NodeID> border_source_nodes;
-    border_source_nodes.reserve(0.01 * source_nodes.size());
+    border_source_nodes.reserve(source_nodes.size() / 100);
 
     std::copy_if(source_nodes.begin(),
                  source_nodes.end(),
@@ -52,7 +52,7 @@ DinicMaxFlow::MinCut DinicMaxFlow::operator()(const BisectionGraphView &view,
                  makeHasNeighborNotInCheck(source_nodes, view));
 
     std::vector<NodeID> border_sink_nodes;
-    border_sink_nodes.reserve(0.01 * sink_nodes.size());
+    border_sink_nodes.reserve(sink_nodes.size() / 100);
     std::copy_if(sink_nodes.begin(),
                  sink_nodes.end(),
                  std::back_inserter(border_sink_nodes),
@@ -74,7 +74,7 @@ DinicMaxFlow::MinCut DinicMaxFlow::operator()(const BisectionGraphView &view,
         // check if the sink can be reached from the source, it's enough to check the border
         const auto separated = std::find_if(border_sink_nodes.begin(),
                                             border_sink_nodes.end(),
-                                            [&levels, &view](const auto node) {
+                                            [&levels](const auto node) {
                                                 return levels[node] != INVALID_LEVEL;
                                             }) == border_sink_nodes.end();
 
@@ -98,16 +98,22 @@ DinicMaxFlow::MinCut DinicMaxFlow::MakeCut(const BisectionGraphView &view,
                                            const LevelGraph &levels,
                                            const std::size_t flow_value) const
 {
-    const auto is_valid_level = [](const Level level) { return level != INVALID_LEVEL; };
-
     // all elements within `levels` are on the source side
     // This part should opt to find the most balanced cut, which is not necessarily the case right
     // now. There is potential for optimisation here.
-    std::vector<bool> result(view.NumberOfNodes());
+    size_t const count = levels.size();
+    BOOST_ASSERT(view.NumberOfNodes() == count);
 
-    BOOST_ASSERT(view.NumberOfNodes() == levels.size());
-    std::size_t source_side_count = std::count_if(levels.begin(), levels.end(), is_valid_level);
-    std::transform(levels.begin(), levels.end(), result.begin(), is_valid_level);
+    std::vector<bool> result(count, false);
+    size_t source_side_count = 0;
+    for (size_t i = 0; i < count; ++i)
+    {
+      if (levels[i] != INVALID_LEVEL)
+      {
+        result[i] = true;
+        ++source_side_count;
+      }
+    }
 
     return {source_side_count, flow_value, std::move(result)};
 }
@@ -182,10 +188,10 @@ std::size_t DinicMaxFlow::BlockingFlow(FlowEdges &flow,
     std::size_t flow_increase = 0;
 
     // augment the flow along a path in the level graph
-    const auto augment_flow = [&flow, &view](const std::vector<NodeID> &path) {
+    const auto augment_flow = [&flow](const std::vector<NodeID> &path) {
 
         // add/remove flow edges from the current residual graph
-        const auto augment_one = [&flow, &view](const NodeID from, const NodeID to) {
+        const auto augment_one = [&flow](const NodeID from, const NodeID to) {
             // check if there is flow in the opposite direction
             auto existing_edge = flow[to].find(from);
             if (existing_edge != flow[to].end())

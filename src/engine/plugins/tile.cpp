@@ -109,8 +109,6 @@ struct BBox final
 // Simple container for integer coordinates (i.e. pixel coords)
 struct point_type_i final
 {
-    point_type_i(std::int64_t _x, std::int64_t _y) : x(_x), y(_y) {}
-
     const std::int64_t x;
     const std::int64_t y;
 };
@@ -534,7 +532,6 @@ void encodeVectorTile(const DataFacadeBase &facade,
                     line_string_index.add(name);
 
                     const auto encode_tile_line = [&line_layer_writer,
-                                                   &edge,
                                                    &component_id,
                                                    &id,
                                                    &max_datasource_id,
