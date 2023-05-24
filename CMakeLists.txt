@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.2)
 project(osrm)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_CURRENT_BINARY_DIR AND NOT MSVC_IDE)
@@ -43,7 +43,7 @@ if(ENABLE_MASON)
   set(MASON_BOOST_VERSION "1.65.1")
   set(MASON_STXXL_VERSION "1.4.1-1")
   set(MASON_EXPAT_VERSION "2.2.0")
-  set(MASON_LUA_VERSION "5.1.5")
+  set(MASON_LUA_VERSION "5.4.4")
   set(MASON_BZIP2_VERSION "1.0.6")
   set(MASON_TBB_VERSION "2021.3.0")
   set(MASON_LIBSHP_VERSION "1.3.0")
@@ -118,7 +118,7 @@ endif()
 
 include_directories(BEFORE ${CMAKE_CURRENT_BINARY_DIR}/include/)
 include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR}/include/)
-include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/third_party/sol2/)
+include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/third_party/sol2/include)
 include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/third_party/variant/include)
 
 set(BOOST_COMPONENTS date_time chrono filesystem iostreams program_options regex system thread unit_test_framework)

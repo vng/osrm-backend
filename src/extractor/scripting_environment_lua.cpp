@@ -84,9 +84,22 @@ struct to_lua_object : public boost::static_visitor<sol::object>
 {
     to_lua_object(sol::state &state) : state(state) {}
     template <typename T> auto operator()(T &v) const { return sol::make_object(state, v); }
-    auto operator()(boost::blank &) const { return sol::nil; }
+    auto operator()(boost::blank &) const { return sol::lua_nil; }
     sol::state &state;
 };
+} // namespace
+
+// Handle a lua error thrown in a protected function by printing the traceback and bubbling
+// exception up to caller. Lua errors are generally unrecoverable, so this exception should not be
+// caught but instead should terminate the process. The point of having this error handler rather
+// than just using unprotected Lua functions which terminate the process automatically is that this
+// function provides more useful error messages including Lua tracebacks and line numbers.
+void handle_lua_error(sol::protected_function_result &luares)
+{
+    sol::error luaerr = luares;
+    std::string msg = luaerr.what();
+    std::cerr << msg << std::endl;
+    throw util::exception("Lua error (see stderr for traceback)");
 }
 
 Sol2ScriptingEnvironment::Sol2ScriptingEnvironment(
@@ -223,11 +236,11 @@ void Sol2ScriptingEnvironment::InitContext(LuaScriptingContext &context)
         "version",
         &osmium::Way::version,
         "get_nodes",
-        [](const osmium::Way &way) { return sol::as_table(way.nodes()); },
+        [](const osmium::Way &way) { return sol::as_table(&way.nodes()); },
         "get_location_tag",
         [&context](const osmium::Way &way, const char *key) {
             if (context.location_dependent_data.empty())
-                return sol::object(sol::nil);
+                return sol::object(sol::lua_nil);
             // HEURISTIC: use a single node (last) of the way to localize the way
             // For more complicated scenarios a proper merging of multiple tags
             // at one or many locations must be provided
@@ -491,10 +504,16 @@ void Sol2ScriptingEnvironment::InitContext(LuaScriptingContext &context)
                                std::numeric_limits<TurnPenalty>::max());
 
         // call initialize function
-        sol::function setup_function = function_table.value()["setup"];
+        sol::protected_function setup_function = function_table.value()["setup"];
         if (!setup_function.valid())
             throw util::exception("Profile must have an setup() function.");
-        sol::optional<sol::table> profile_table = setup_function();
+
+        auto setup_result = setup_function();
+
+        if (!setup_result.valid())
+            handle_lua_error(setup_result);
+
+        sol::optional<sol::table> profile_table = setup_result;
         if (profile_table == sol::nullopt)
             throw util::exception("Profile setup() must return a table.");
         else
@@ -818,7 +837,7 @@ void Sol2ScriptingEnvironment::ProcessElements(
             const auto &relation = static_cast<const osmium::Relation &>(*entity);
             if (auto result_res = restriction_parser.TryParse(relation))
             {
-                resulting_restrictions.push_back(*result_res);
+                resulting_restrictions.push_back(std::move(*result_res));
             }
         }
         break;
@@ -842,18 +861,38 @@ Sol2ScriptingEnvironment::GetStringListFromFunction(const std::string &function_
     return strings;
 }
 
+namespace
+{
+
+// string list can be defined either as a Set(see profiles/lua/set.lua) or as a Sequence (see
+// profiles/lua/sequence.lua) `Set` is a table with keys that are actual values we are looking for
+// and values that always `true`. `Sequence` is a table with keys that are indices and values that
+// are actual values we are looking for.
+
+std::string GetSetOrSequenceValue(const std::pair<sol::object, sol::object> &pair)
+{
+    if (pair.second.is<std::string>())
+    {
+        return pair.second.as<std::string>();
+    }
+    BOOST_ASSERT(pair.first.is<std::string>());
+    return pair.first.as<std::string>();
+}
+
+} // namespace
+
 std::vector<std::string>
 Sol2ScriptingEnvironment::GetStringListFromTable(const std::string &table_name)
 {
     auto &context = GetSol2Context();
     BOOST_ASSERT(context.state.lua_state() != nullptr);
     std::vector<std::string> strings;
-    sol::table table = context.profile_table[table_name];
-    if (table.valid())
+    sol::optional<sol::table> table = context.profile_table[table_name];
+    if (table && table->valid())
     {
-        for (auto &&pair : table)
+        for (auto &&pair : *table)
         {
-            strings.push_back(pair.second.as<std::string>());
+            strings.emplace_back(GetSetOrSequenceValue(pair));
         }
     }
     return strings;
@@ -866,13 +905,13 @@ Sol2ScriptingEnvironment::GetStringListsFromTable(const std::string &table_name)
 
     auto &context = GetSol2Context();
     BOOST_ASSERT(context.state.lua_state() != nullptr);
-    sol::table table = context.profile_table[table_name];
-    if (!table.valid())
+    sol::optional<sol::table> table = context.profile_table[table_name];
+    if (!table || !table->valid())
     {
         return string_lists;
     }
 
-    for (const auto &pair : table)
+    for (const auto &pair : *table)
     {
         sol::table inner_table = pair.second;
         if (!inner_table.valid())
@@ -884,7 +923,7 @@ Sol2ScriptingEnvironment::GetStringListsFromTable(const std::string &table_name)
         std::vector<std::string> inner_vector;
         for (const auto &inner_pair : inner_table)
         {
-            inner_vector.push_back(inner_pair.first.as<std::string>());
+            inner_vector.emplace_back(GetSetOrSequenceValue(inner_pair));
         }
         string_lists.push_back(std::move(inner_vector));
     }
@@ -1037,22 +1076,28 @@ void Sol2ScriptingEnvironment::ProcessSegment(ExtractionSegment &segment)
 
     if (context.has_segment_function)
     {
+        sol::protected_function_result luares;
         switch (context.api_version)
         {
         case 4:
         case 3:
         case 2:
-            context.segment_function(context.profile_table, segment);
+            luares = context.segment_function(context.profile_table, std::ref(segment));
             break;
         case 1:
-            context.segment_function(segment);
+            luares = context.segment_function(std::ref(segment));
             break;
         case 0:
-            context.segment_function(
-                segment.source, segment.target, segment.distance, segment.duration);
+            luares = context.segment_function(std::ref(segment.source),
+                                              std::ref(segment.target),
+                                              segment.distance,
+                                              segment.duration);
             segment.weight = segment.duration; // back-compatibility fallback to duration
             break;
         }
+
+        if (!luares.valid())
+            handle_lua_error(luares);
     }
 }
 
@@ -1062,20 +1107,26 @@ void LuaScriptingContext::ProcessNode(const osmium::Node &node,
 {
     BOOST_ASSERT(state.lua_state() != nullptr);
 
+    sol::protected_function_result luares;
+
+    // TODO check for api version, make sure luares is always set
     switch (api_version)
     {
     case 4:
     case 3:
-        node_function(profile_table, node, result, relations);
+        luares = node_function(profile_table, std::cref(node), std::ref(result), std::cref(relations));
         break;
     case 2:
-        node_function(profile_table, node, result);
+        luares = node_function(profile_table, std::cref(node), std::ref(result));
         break;
     case 1:
     case 0:
-        node_function(node, result);
+        luares = node_function(std::cref(node), std::ref(result));
         break;
     }
+
+    if (!luares.valid())
+        handle_lua_error(luares);
 }
 
 void LuaScriptingContext::ProcessWay(const osmium::Way &way,
@@ -1084,20 +1135,26 @@ void LuaScriptingContext::ProcessWay(const osmium::Way &way,
 {
     BOOST_ASSERT(state.lua_state() != nullptr);
 
+    sol::protected_function_result luares;
+
+    // TODO check for api version, make sure luares is always set
     switch (api_version)
     {
     case 4:
     case 3:
-        way_function(profile_table, way, result, relations);
+        luares = way_function(profile_table, std::cref(way), std::ref(result), std::cref(relations));
         break;
     case 2:
-        way_function(profile_table, way, result);
+        luares = way_function(profile_table, std::cref(way), std::ref(result));
         break;
     case 1:
     case 0:
-        way_function(way, result);
+        luares = way_function(std::cref(way), std::ref(result));
         break;
     }
+
+    if (!luares.valid())
+        handle_lua_error(luares);
 }
 
 } // namespace extractor
