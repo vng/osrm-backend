@@ -38,8 +38,7 @@
 
 #include <tbb/blocked_range.h>
 #include <tbb/parallel_for.h>
-#include <tbb/pipeline.h>
-#include <tbb/task_scheduler_init.h>
+#include <tbb/parallel_pipeline.h>
 
 namespace std
 {
@@ -489,7 +488,7 @@ void EdgeBasedGraphFactory::GenerateEdgeExpandedEdges(
     // `generator_stage`,
     // then those groups are processed in parallel `processor_stage`.  Finally, results are
     // appended to the various buffer vectors by the `output_stage` in the same order
-    // that the `generator_stage` created them in (tbb::filter::serial_in_order creates this
+    // that the `generator_stage` created them in (tbb::filter_mode::serial_in_order creates this
     // guarantee).  The order needs to be maintained because we depend on it later in the
     // processing pipeline.
     {
@@ -511,8 +510,8 @@ void EdgeBasedGraphFactory::GenerateEdgeExpandedEdges(
         const constexpr unsigned GRAINSIZE = 100;
 
         // First part of the pipeline generates iterator ranges of IDs in sets of GRAINSIZE
-        tbb::filter_t<void, tbb::blocked_range<NodeID>> generator_stage(
-            tbb::filter::serial_in_order, [&](tbb::flow_control &fc) -> tbb::blocked_range<NodeID> {
+        tbb::filter<void, tbb::blocked_range<NodeID>> generator_stage(
+            tbb::filter_mode::serial_in_order, [&](tbb::flow_control &fc) -> tbb::blocked_range<NodeID> {
                 if (current_node < node_count)
                 {
                     auto next_node = std::min(current_node + GRAINSIZE, node_count);
@@ -674,8 +673,8 @@ void EdgeBasedGraphFactory::GenerateEdgeExpandedEdges(
 
         // Second part of the pipeline is where the intersection analysis is done for
         // each intersection
-        tbb::filter_t<tbb::blocked_range<NodeID>, std::shared_ptr<PipelineBuffer>> processor_stage(
-            tbb::filter::parallel, [&](const tbb::blocked_range<NodeID> &intersection_node_range) {
+        tbb::filter<tbb::blocked_range<NodeID>, std::shared_ptr<PipelineBuffer>> processor_stage(
+            tbb::filter_mode::parallel, [&](const tbb::blocked_range<NodeID> &intersection_node_range) {
 
                 auto buffer = std::make_shared<PipelineBuffer>();
                 buffer->nodes_processed =
@@ -957,8 +956,8 @@ void EdgeBasedGraphFactory::GenerateEdgeExpandedEdges(
         std::vector<EdgeWithData> delayed_data;
 
         // Last part of the pipeline puts all the calculated data into the serial buffers
-        tbb::filter_t<std::shared_ptr<PipelineBuffer>, void> output_stage(
-            tbb::filter::serial_in_order, [&](const std::shared_ptr<PipelineBuffer> buffer) {
+        tbb::filter<std::shared_ptr<PipelineBuffer>, void> output_stage(
+            tbb::filter_mode::serial_in_order, [&](const std::shared_ptr<PipelineBuffer> buffer) {
                 nodes_completed += buffer->nodes_processed;
                 progress.PrintStatus(nodes_completed);
 
@@ -1000,7 +999,7 @@ void EdgeBasedGraphFactory::GenerateEdgeExpandedEdges(
         // to be balanced with the GRAINSIZE above - ideally, the pipeline puts as much work
         // as possible in the `intersection_handler` step so that those parallel workers don't
         // get blocked too much by the slower (io-performing) `buffer_storage`
-        tbb::parallel_pipeline(tbb::task_scheduler_init::default_num_threads() * 5,
+        tbb::parallel_pipeline(std::thread::hardware_concurrency() * 5,
                                generator_stage & processor_stage & output_stage);
 
         std::sort(delayed_data.begin(), delayed_data.end(), [](auto const &lhs, auto const &rhs) {

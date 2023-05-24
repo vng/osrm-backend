@@ -10,7 +10,7 @@
 #include <boost/program_options.hpp>
 #include <boost/program_options/errors.hpp>
 
-#include <tbb/task_scheduler_init.h>
+#include <tbb/global_control.h>
 
 #include <cstdlib>
 #include <exception>
@@ -45,7 +45,7 @@ return_code parseArguments(int argc,
     config_options.add_options()(
         "threads,t",
         boost::program_options::value<unsigned int>(&contractor_config.requested_num_threads)
-            ->default_value(tbb::task_scheduler_init::default_num_threads()),
+            ->default_value(std::thread::hardware_concurrency()),
         "Number of threads to use")(
         "core,k",
         boost::program_options::value<double>(&contractor_config.core_factor)->default_value(1.0),
@@ -171,14 +171,6 @@ int main(int argc, char *argv[]) try
         return EXIT_FAILURE;
     }
 
-    const unsigned recommended_num_threads = tbb::task_scheduler_init::default_num_threads();
-
-    if (recommended_num_threads != contractor_config.requested_num_threads)
-    {
-        util::Log(logWARNING) << "The recommended number of threads is " << recommended_num_threads
-                              << "! This setting may have performance side-effects.";
-    }
-
     if (!contractor_config.IsValid())
     {
         return EXIT_FAILURE;
@@ -187,7 +179,8 @@ int main(int argc, char *argv[]) try
     util::Log() << "Input file: " << contractor_config.base_path.string() << ".osrm";
     util::Log() << "Threads: " << contractor_config.requested_num_threads;
 
-    tbb::task_scheduler_init init(contractor_config.requested_num_threads);
+    tbb::global_control gc(tbb::global_control::max_allowed_parallelism,
+                           contractor_config.requested_num_threads);
 
     osrm::contract(contractor_config);
 

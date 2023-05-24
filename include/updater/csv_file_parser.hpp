@@ -80,7 +80,7 @@ template <typename Key, typename Value> struct CSVFilesParser
 
             return LookupTable<Key, Value>{lookup};
         }
-        catch (const tbb::captured_exception &e)
+        catch (const std::exception &e)
         {
             throw util::exception(e.what() + SOURCE_REF);
         }

@@ -1,10 +1,11 @@
 #ifndef OSRM_EXTRACTOR_SUFFIX_LIST_HPP_
 #define OSRM_EXTRACTOR_SUFFIX_LIST_HPP_
 
+#include "util/string_view.hpp"
+
 #include <string>
 #include <unordered_set>
-
-#include "util/string_view.hpp"
+#include <vector>
 
 namespace osrm
 {

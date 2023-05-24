@@ -44,7 +44,7 @@
 # TBB_INSTALL_DIR or $ENV{TBB21_INSTALL_DIR} or $ENV{TBB_INSTALL_DIR}
 
 # This module defines
-# TBB_INCLUDE_DIRS, where to find task_scheduler_init.h, etc.
+# TBB_INCLUDE_DIRS, where to find tbb.h, etc.
 # TBB_LIBRARY_DIRS, where to find libtbb, libtbbmalloc
 # TBB_DEBUG_LIBRARY_DIRS, where to find libtbb_debug, libtbbmalloc_debug
 # TBB_INSTALL_DIR, the base TBB install directory
@@ -184,7 +184,7 @@ set (TBB_INC_SEARCH_DIR ${_TBB_INSTALL_DIR}/include)
 # Jiri: tbbvars now sets the CPATH environment variable to the directory
 #       containing the headers.
 find_path(TBB_INCLUDE_DIR
-    tbb/task_scheduler_init.h
+    tbb/tbb.h
     HINTS ${TBB_INC_SEARCH_DIR} ENV CPATH
 )
 mark_as_advanced(TBB_INCLUDE_DIR)
@@ -276,11 +276,3 @@ if (NOT TBB_FOUND)
 endif (NOT TBB_FOUND)
 
 endif (NOT _TBB_INSTALL_DIR)
-
-if (TBB_FOUND)
-	set(TBB_INTERFACE_VERSION 0)
-	FILE(READ "${TBB_INCLUDE_DIRS}/tbb/tbb_stddef.h" _TBB_VERSION_CONTENTS)
-	STRING(REGEX REPLACE ".*#define TBB_INTERFACE_VERSION ([0-9]+).*" "\\1" TBB_INTERFACE_VERSION "${_TBB_VERSION_CONTENTS}")
-	set(TBB_INTERFACE_VERSION "${TBB_INTERFACE_VERSION}")
-        message(STATUS "TBB interface version: ${TBB_INTERFACE_VERSION}")
-endif (TBB_FOUND)

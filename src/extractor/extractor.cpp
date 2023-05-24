@@ -49,10 +49,8 @@
 #include <osmium/thread/pool.hpp>
 #include <osmium/visitor.hpp>
 
-#include <tbb/pipeline.h>
-#include <tbb/task_scheduler_init.h>
-
-#include <cstdlib>
+#include <tbb/global_control.h>
+#include <tbb/parallel_pipeline.h>
 
 #include <algorithm>
 #include <atomic>
@@ -189,16 +187,14 @@ int Extractor::run(ScriptingEnvironment &scripting_environment)
 {
     util::LogPolicy::GetInstance().Unmute();
 
-    const unsigned recommended_num_threads = tbb::task_scheduler_init::default_num_threads();
-    const auto number_of_threads = std::min(recommended_num_threads, config.requested_num_threads);
-    tbb::task_scheduler_init init(number_of_threads ? number_of_threads
-                                                    : tbb::task_scheduler_init::automatic);
+    tbb::global_control gc(tbb::global_control::max_allowed_parallelism,
+                           config.requested_num_threads);
 
     guidance::LaneDescriptionMap turn_lane_map;
     std::vector<TurnRestriction> turn_restrictions;
     std::vector<ConditionalTurnRestriction> conditional_turn_restrictions;
     std::tie(turn_lane_map, turn_restrictions, conditional_turn_restrictions) =
-        ParseOSMData(scripting_environment, number_of_threads);
+        ParseOSMData(scripting_environment, config.requested_num_threads);
 
     // Transform the node-based graph that OSM is based on into an edge-based graph
     // that is better for routing.  Every edge becomes a node, and every valid
@@ -420,8 +416,8 @@ Extractor::ParseOSMData(ScriptingEnvironment &scripting_environment,
     ExtractionRelationContainer relations;
 
     const auto buffer_reader = [](osmium::io::Reader &reader) {
-        return tbb::filter_t<void, SharedBuffer>(
-            tbb::filter::serial_in_order, [&reader](tbb::flow_control &fc) {
+        return tbb::filter<void, SharedBuffer>(
+            tbb::filter_mode::serial_in_order, [&reader](tbb::flow_control &fc) {
                 if (auto buffer = reader.read())
                 {
                     return std::make_shared<osmium::memory::Buffer>(std::move(buffer));
@@ -442,15 +438,15 @@ Extractor::ParseOSMData(ScriptingEnvironment &scripting_environment,
     osmium_index_type location_cache;
     osmium_location_handler_type location_handler(location_cache);
 
-    tbb::filter_t<SharedBuffer, SharedBuffer> location_cacher(
-        tbb::filter::serial_in_order, [&location_handler](SharedBuffer buffer) {
+    tbb::filter<SharedBuffer, SharedBuffer> location_cacher(
+        tbb::filter_mode::serial_in_order, [&location_handler](SharedBuffer buffer) {
             osmium::apply(buffer->begin(), buffer->end(), location_handler);
             return buffer;
         });
 
     // OSM elements Lua parser
-    tbb::filter_t<SharedBuffer, ParsedBuffer> buffer_transformer(
-        tbb::filter::parallel, [&](const SharedBuffer buffer) {
+    tbb::filter<SharedBuffer, ParsedBuffer> buffer_transformer(
+        tbb::filter_mode::parallel, [&](const SharedBuffer buffer) {
 
             ParsedBuffer parsed_buffer;
             parsed_buffer.buffer = buffer;
@@ -467,8 +463,8 @@ Extractor::ParseOSMData(ScriptingEnvironment &scripting_environment,
     unsigned number_of_nodes = 0;
     unsigned number_of_ways = 0;
     unsigned number_of_restrictions = 0;
-    tbb::filter_t<ParsedBuffer, void> buffer_storage(
-        tbb::filter::serial_in_order, [&](const ParsedBuffer &parsed_buffer) {
+    tbb::filter<ParsedBuffer, void> buffer_storage(
+        tbb::filter_mode::serial_in_order, [&](const ParsedBuffer &parsed_buffer) {
 
             number_of_nodes += parsed_buffer.resulting_nodes.size();
             // put parsed objects thru extractor callbacks
@@ -489,8 +485,8 @@ Extractor::ParseOSMData(ScriptingEnvironment &scripting_environment,
             }
         });
 
-    tbb::filter_t<SharedBuffer, std::shared_ptr<ExtractionRelationContainer>> buffer_relation_cache(
-        tbb::filter::parallel, [&](const SharedBuffer buffer) {
+    tbb::filter<SharedBuffer, std::shared_ptr<ExtractionRelationContainer>> buffer_relation_cache(
+        tbb::filter_mode::parallel, [&](const SharedBuffer buffer) {
             if (!buffer)
                 return std::shared_ptr<ExtractionRelationContainer>{};
 
@@ -525,8 +521,8 @@ Extractor::ParseOSMData(ScriptingEnvironment &scripting_environment,
         });
 
     unsigned number_of_relations = 0;
-    tbb::filter_t<std::shared_ptr<ExtractionRelationContainer>, void> buffer_storage_relation(
-        tbb::filter::serial_in_order,
+    tbb::filter<std::shared_ptr<ExtractionRelationContainer>, void> buffer_storage_relation(
+        tbb::filter_mode::serial_in_order,
         [&](const std::shared_ptr<ExtractionRelationContainer> parsed_relations) {
 
             number_of_relations += parsed_relations->GetRelationsNum();
@@ -535,7 +531,7 @@ Extractor::ParseOSMData(ScriptingEnvironment &scripting_environment,
 
     // Parse OSM elements with parallel transformer
     // Number of pipeline tokens that yielded the best speedup was about 1.5 * num_cores
-    const auto num_threads = tbb::task_scheduler_init::default_num_threads() * 1.5;
+    const auto num_threads = std::thread::hardware_concurrency() * 1.5;
     const auto read_meta =
         config.use_metadata ? osmium::io::read_meta::yes : osmium::io::read_meta::no;
 

@@ -36,7 +36,10 @@
 # This is because, the lua location is not standardized and may exist in
 # locations other than lua/
 
-include(FindPkgConfig)
+if(NOT PKG_CONFIG_FOUND)
+  include(CMakeFindDependencyMacro)
+  find_dependency(PkgConfig)
+endif()
 
 unset(_lua_include_subdirs)
 unset(_lua_library_names)
@@ -44,7 +47,7 @@ unset(_lua_append_versions)
 
 # this is a function only to have all the variables inside go away automatically
 function(_lua_set_version_vars)
-    set(LUA_VERSIONS5 5.3 5.2 5.1 5.0)
+    set(LUA_VERSIONS5 5.1)
 
     if (Lua_FIND_VERSION_EXACT)
         if (Lua_FIND_VERSION_COUNT GREATER 1)

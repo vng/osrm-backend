@@ -7,7 +7,7 @@
 #include "util/timing_util.hpp"
 #include "util/version.hpp"
 
-#include <tbb/task_scheduler_init.h>
+#include <tbb/global_control.h>
 
 #include <boost/algorithm/string/join.hpp>
 #include <boost/assert.hpp>
@@ -85,7 +85,7 @@ parseArguments(int argc, char *argv[], std::string &verbosity, partition::Partit
         //
         ("threads,t",
          boost::program_options::value<unsigned int>(&config.requested_num_threads)
-             ->default_value(tbb::task_scheduler_init::default_num_threads()),
+             ->default_value(std::thread::hardware_concurrency()),
          "Number of threads to use")
         //
         ("balance",
@@ -233,8 +233,9 @@ int main(int argc, char *argv[]) try
         return EXIT_FAILURE;
     }
 
-    tbb::task_scheduler_init init(partition_config.requested_num_threads);
-    BOOST_ASSERT(init.is_active());
+    tbb::global_control gc(tbb::global_control::max_allowed_parallelism,
+                           partition_config.requested_num_threads);
+
     util::Log() << "Computing recursive bisection";
 
     TIMER_START(bisect);

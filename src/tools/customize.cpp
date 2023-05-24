@@ -5,7 +5,7 @@
 #include "util/meminfo.hpp"
 #include "util/version.hpp"
 
-#include <tbb/task_scheduler_init.h>
+#include <tbb/global_control.h>
 
 #include <boost/filesystem.hpp>
 #include <boost/program_options.hpp>
@@ -39,7 +39,7 @@ return_code parseArguments(int argc,
         //
         ("threads,t",
          boost::program_options::value<unsigned int>(&customization_config.requested_num_threads)
-             ->default_value(tbb::task_scheduler_init::default_num_threads()),
+             ->default_value(std::thread::hardware_concurrency()),
          "Number of threads to use")(
             "segment-speed-file",
             boost::program_options::value<std::vector<std::string>>(
@@ -166,7 +166,8 @@ int main(int argc, char *argv[]) try
         return EXIT_FAILURE;
     }
 
-    tbb::task_scheduler_init init(customization_config.requested_num_threads);
+    tbb::global_control gc(tbb::global_control::max_allowed_parallelism,
+                           customization_config.requested_num_threads);
 
     auto exitcode = customizer::Customizer().Run(customization_config);
 
