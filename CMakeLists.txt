@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.2)
+cmake_minimum_required(VERSION 3.5)
 project(osrm)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -58,10 +58,6 @@ if(ENABLE_MASON)
   include(mason)
 endif()
 
-# be compatible with version handling before cmake 3.x
-if (POLICY CMP0048)
-  cmake_policy(SET CMP0048 OLD)
-endif()
 project(OSRM C CXX)
 set(OSRM_VERSION_MAJOR 5)
 set(OSRM_VERSION_MINOR 15)

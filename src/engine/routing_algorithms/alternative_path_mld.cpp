@@ -13,7 +13,6 @@
 #include <utility>
 #include <vector>
 
-#include <boost/function_output_iterator.hpp>
 
 namespace osrm
 {
