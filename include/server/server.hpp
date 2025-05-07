@@ -31,6 +31,7 @@ namespace server
 
 class Server
 {
+  using ServiceT = boost::asio::io_context;
   public:
     // Note: returns a shared instead of a unique ptr as it is captured in a lambda somewhere else
     static std::shared_ptr<Server>
@@ -49,8 +50,7 @@ class Server
         const auto port_string = std::to_string(port);
 
         boost::asio::ip::tcp::resolver resolver(io_service);
-        boost::asio::ip::tcp::resolver::query query(address, port_string);
-        boost::asio::ip::tcp::endpoint endpoint = *resolver.resolve(query);
+        boost::asio::ip::tcp::endpoint endpoint = *resolver.resolve(address, port_string).begin();
 
         acceptor.open(endpoint.protocol());
 #ifdef SO_REUSEPORT
@@ -74,7 +74,7 @@ class Server
         for (unsigned i = 0; i < thread_pool_size; ++i)
         {
             std::shared_ptr<std::thread> thread = std::make_shared<std::thread>(
-                boost::bind(&boost::asio::io_service::run, &io_service));
+                boost::bind(&ServiceT::run, &io_service));
             threads.push_back(thread);
         }
         for (auto thread : threads)
@@ -104,7 +104,7 @@ class Server
     }
 
     unsigned thread_pool_size;
-    boost::asio::io_service io_service;
+    ServiceT io_service;
     boost::asio::ip::tcp::acceptor acceptor;
     std::shared_ptr<Connection> new_connection;
     RequestHandler request_handler;

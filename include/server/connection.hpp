@@ -36,8 +36,9 @@ class RequestHandler;
 /// Represents a single connection from a client.
 class Connection : public std::enable_shared_from_this<Connection>
 {
+  using ServiceT = boost::asio::io_context;
   public:
-    explicit Connection(boost::asio::io_service &io_service, RequestHandler &handler);
+    explicit Connection(ServiceT &io_service, RequestHandler &handler);
     Connection(const Connection &) = delete;
     Connection &operator=(const Connection &) = delete;
 
@@ -55,7 +56,7 @@ class Connection : public std::enable_shared_from_this<Connection>
     std::vector<char> compress_buffers(const std::vector<char> &uncompressed_data,
                                        const http::compression_type compression_type);
 
-    boost::asio::io_service::strand strand;
+    ServiceT::strand strand;
     boost::asio::ip::tcp::socket TCP_socket;
     RequestHandler &request_handler;
     RequestParser request_parser;

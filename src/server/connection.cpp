@@ -16,7 +16,7 @@ namespace osrm
 namespace server
 {
 
-Connection::Connection(boost::asio::io_service &io_service, RequestHandler &handler)
+Connection::Connection(ServiceT &io_service, RequestHandler &handler)
     : strand(io_service), TCP_socket(io_service), request_handler(handler)
 {
 }
