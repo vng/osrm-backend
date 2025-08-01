@@ -13,9 +13,10 @@ namespace storage
 bool IOConfig::IsValid() const
 {
     bool success = true;
-    for (auto &fileName : required_input_files)
+    for (auto const & fileName : required_input_files)
     {
-        if (!boost::filesystem::is_regular_file({base_path.string() + fileName.string()}))
+        using namespace boost::filesystem;
+        if (!is_regular_file(path{base_path.string() + fileName.string()}))
         {
             util::Log(logWARNING) << "Missing/Broken File: " << base_path.string()
                                   << fileName.string();

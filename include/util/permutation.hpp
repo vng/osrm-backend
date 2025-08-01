@@ -40,10 +40,17 @@ void inplacePermutation(RandomAccesIterator begin,
         for (; new_index != index; old_index = new_index, new_index = old_to_new[new_index])
         {
             was_replaced[old_index] = true;
-            std::swap(buffer, begin[new_index]);
+
+            // std::swap doesn't compile with fancy bit iterator types on Linux
+            auto tmp = buffer;
+            buffer = begin[new_index];
+            begin[new_index] = tmp;
         }
         was_replaced[old_index] = true;
-        std::swap(buffer, begin[index]);
+
+        auto tmp = buffer;
+        buffer = begin[index];
+        begin[index] = tmp;
     }
 }
 
