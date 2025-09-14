@@ -117,7 +117,7 @@ include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR}/include/)
 include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/third_party/sol2/include)
 include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/third_party/variant/include)
 
-set(BOOST_COMPONENTS date_time chrono filesystem iostreams program_options regex system thread unit_test_framework)
+set(BOOST_COMPONENTS date_time chrono filesystem iostreams program_options regex thread unit_test_framework)
 
 configure_file(
   ${CMAKE_CURRENT_SOURCE_DIR}/include/util/version.hpp.in
@@ -472,7 +472,7 @@ if(ENABLE_MASON)
 
 else()
 
-  find_package(Boost 1.65.1 REQUIRED COMPONENTS ${BOOST_COMPONENTS})
+  find_package(Boost 1.89.0 REQUIRED COMPONENTS ${BOOST_COMPONENTS})
   add_dependency_includes(${Boost_INCLUDE_DIRS})
 
   find_package(TBB REQUIRED)
