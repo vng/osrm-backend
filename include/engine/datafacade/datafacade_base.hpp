@@ -4,6 +4,7 @@
 // Exposes all data access interfaces to the algorithms via base class ptr
 
 #include "engine/approach.hpp"
+#include "engine/bearing.hpp"
 #include "engine/phantom_node.hpp"
 
 #include "contractor/query_edge.hpp"
@@ -29,16 +30,32 @@
 #include "util/typedefs.hpp"
 
 #include "osrm/coordinate.hpp"
-#include <cstddef>
 
 #include "util/vector_view.hpp"
-#include <engine/bearing.hpp>
+
+#include <boost/container/small_vector.hpp>
+
 #include <optional>
 #include <ranges>
 #include <span>
 #include <string>
 #include <string_view>
 #include <vector>
+
+namespace osrm
+{
+template <class T> class SmallVector : public boost::container::small_vector<T, 4>
+{
+public:
+    template <std::ranges::input_range R>
+    requires std::convertible_to<std::ranges::range_value_t<R>, T>
+    SmallVector(R const & range)
+        : boost::container::small_vector<T, 4>(std::ranges::begin(range), std::ranges::end(range))
+    {
+    }
+    explicit SmallVector(size_t n = 0) : boost::container::small_vector<T, 4>(n) {}
+};
+} // namespace osrm
 
 namespace osrm::engine::datafacade
 {
@@ -48,19 +65,17 @@ class BaseDataFacade
   public:
     using RTreeLeaf = extractor::EdgeBasedNodeSegment;
 
-    using NodeForwardRange = std::span<const NodeID>;
-    using NodeReverseRange = std::ranges::reverse_view<NodeForwardRange>;
+    using NodeForwardRange = SmallVector<NodeID>;
+    using NodeReverseRange = NodeForwardRange;
 
-    using WeightForwardRange =
-        std::ranges::subrange<extractor::SegmentDataView::SegmentWeightVector::const_iterator>;
-    using WeightReverseRange = std::ranges::reverse_view<WeightForwardRange>;
+    using WeightForwardRange = SmallVector<SegmentWeight>;
+    using WeightReverseRange = WeightForwardRange;
 
-    using DurationForwardRange =
-        std::ranges::subrange<extractor::SegmentDataView::SegmentDurationVector::const_iterator>;
-    using DurationReverseRange = std::ranges::reverse_view<DurationForwardRange>;
+    using DurationForwardRange = SmallVector<SegmentDuration>;
+    using DurationReverseRange = DurationForwardRange;
 
-    using DatasourceForwardRange = std::span<const DatasourceID>;
-    using DatasourceReverseRange = std::ranges::reverse_view<DatasourceForwardRange>;
+    using DatasourceForwardRange = SmallVector<DatasourceID>;
+    using DatasourceReverseRange = DatasourceForwardRange;
 
     BaseDataFacade() {}
     virtual ~BaseDataFacade() {}
